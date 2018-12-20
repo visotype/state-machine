@@ -1,0 +1,21 @@
+extends:
+  - airbnb-base
+  - plugin:ava/recommended
+
+parserOptions:
+  ecmaVersion: 2017
+  sourceType: module
+
+env:
+  node: true
+
+plugins:
+  - types
+  - ava
+
+rules:
+  no-console: off
+  import/no-extraneous-dependencies:
+    devDependencies: true
+  types/assign-type: error
+  types/array-type: error

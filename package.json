@@ -1,0 +1,32 @@
+{
+  "name": "elm-state-machine",
+  "version": "1.0.0",
+  "description": "Start an Elm program and send/receive messages in a JavaScript runtime",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "build": "npx elm make src/Main.elm --output=main.js --optimize",
+    "sync": "git add . && git commit -m 'automated sync' && git push",
+    "test": "eslint '**/*.js' && ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielnarey/elm-state-machine"
+  },
+  "keywords": [],
+  "author": "Daniel C. Narey",
+  "license": "MIT",
+  "engines": {
+    "node": ">=8"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "ava": "^1.0.1",
+    "elm": "^0.19.0-bugfix2",
+    "eslint": "^5.10.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-ava": "^5.1.1",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-types": "^1.0.2"
+  }
+}
