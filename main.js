@@ -3509,6 +3509,9 @@ var author$project$Update$update = F2(
 						decodeAsString(content));
 				case 'empty':
 					return elm$core$Basics$always(elm$core$Dict$empty);
+				case 'identity':
+					return elm$core$Basics$always(
+						author$project$Model$fromJson(content));
 				default:
 					return elm$core$Basics$identity;
 			}
@@ -3523,8 +3526,8 @@ var author$project$Update$update = F2(
 				A2(
 					operation,
 					_Utils_Tuple2(
-						A2(field, 'flag', object),
-						A2(field, 'content', object)),
+						A2(field, 'op', object),
+						A2(field, 'data', object)),
 					previous)));
 	});
 var elm$core$Platform$worker = _Platform_worker;

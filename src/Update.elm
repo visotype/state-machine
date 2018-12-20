@@ -52,6 +52,9 @@ update msg previous =
         "empty" ->
           always Dict.empty
 
+        "identity" ->
+          always (content |> Model.fromJson)
+
         _ ->
           identity
 
@@ -59,6 +62,6 @@ update msg previous =
     case msg of
       Msg.Received object ->
         previous
-          |> operation (object |> field "flag", object |> field "content")
+          |> operation (object |> field "op", object |> field "data")
           |> (\x -> (x, x))
           |> Tuple.mapSecond (Model.toJson >> Ports.outgoing)
