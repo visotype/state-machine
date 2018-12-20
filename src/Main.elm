@@ -15,7 +15,9 @@ main =
   { init = \object -> (object |> Model.fromJson, Cmd.none)
   , update = Update.update
   , subscriptions = \model ->
-    [ Ports.incoming Msg.Received
+    [ Ports.eval Msg.Eval
+    , Ports.updateModel Msg.UpdateModel
+    , Ports.updateKey Msg.UpdateKey
     ]
       |> Platform.Sub.batch
   }

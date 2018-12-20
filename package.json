@@ -1,7 +1,7 @@
 {
   "name": "elm-state-machine",
   "version": "1.0.0",
-  "description": "Start an Elm program and send/receive messages in a JavaScript runtime",
+  "description": "Use Elm as a state container in a JS/Node app (experimental)",
   "private": true,
   "main": "index.js",
   "scripts": {

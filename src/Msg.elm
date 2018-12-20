@@ -7,4 +7,6 @@ import Json.Decode
 
 
 type Msg
-  = Received Json.Decode.Value
+  = Eval Json.Decode.Value
+  | UpdateModel Json.Decode.Value
+  | UpdateKey Json.Decode.Value

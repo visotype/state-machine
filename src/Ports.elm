@@ -8,6 +8,10 @@ port module Ports exposing
 import Json.Decode
 
 
-port incoming : (Json.Decode.Value -> msg) -> Sub msg
+port eval : (Json.Decode.Value -> msg) -> Sub msg
+
+port updateModel : (Json.Decode.Value -> msg) -> Sub msg
+
+port updateKey : (Json.Decode.Value -> msg) -> Sub msg
 
 port outgoing : Json.Decode.Value -> Cmd msg

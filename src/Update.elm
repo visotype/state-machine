@@ -12,20 +12,17 @@ import Json.Decode
 import Json.Encode
 
 
+
+
 update : Msg.Msg -> Model.Model -> (Model.Model, Cmd Msg.Msg)
 update msg previous =
   let
-    field key =
-      Json.Decode.decodeValue (Json.Decode.field key Json.Decode.value)
-        >> Result.withDefault Json.Encode.null
+
 
     decodeAsString =
-      Json.Decode.decodeValue Json.Decode.string
-        >> Result.withDefault ""
 
-    decodeAsBool =
-      Json.Decode.decodeValue Json.Decode.bool
-        >> Result.toMaybe
+
+
 
     toggleState =
       Maybe.andThen decodeAsBool
@@ -60,7 +57,70 @@ update msg previous =
 
   in
     case msg of
-      Msg.Received object ->
+      Msg.Eval object ->
+        object
+          |> parseOp
+
+      Msg.UpdateModel object ->
+        object
+          |> parseOp
+
+      Msg.UpdateKey object ->
+        object
+          |> parseKeyedOp
+
+--- HELPERS ---
+
+type alias Operation =
+  { key : Maybe String
+  , op : String
+  , args : List Json.Decode.Value
+  }
+
+parseOp : Json.Decode.Value -> Operation
+parseOp object =
+  { op = object |> field "op" |> decodeAsString
+  , args = object |> field "args" |> decodeAsList
+  }
+
+parseKeyedOp : Json.Decode.Value -> (Key, Operation)
+parseKeyedOp object =
+  ( key = object |> field "key" |> decodeAsString
+  , { op = object |> field "op" |> decodeAsString
+    , args = object |> field "args" |> decodeAsList
+    }
+  )
+
+field : String -> Json.Decode.Value -> Maybe Json.Decode.Value
+field key =
+  Json.Decode.decodeValue (Json.Decode.field key Json.Decode.value)
+    >> Result.withDefault Json.Encode.null
+
+decodeAsString : Json.Decode.Value -> Maybe String
+decodeAsString =
+  Json.Decode.decodeValue Json.Decode.string
+    >> Result.withDefault ""
+
+decodeAsBool : Json.Decode.Value -> Bool
+decodeAsBool =
+  Json.Decode.decodeValue Json.Decode.bool
+    >> Result.withDefault False
+
+decodeAsList : Json.Decode.Value -> List Json.Decode.Value
+decodeAsList =
+  Json.Decode.decodeValue (Json.Decode.list Json.Decode.value)
+    >> Result.withDefault []
+
+decodeAsDict : Json.Decode.Value -> Dict.Dict String Json.Decode.Value
+decodeAsDict =
+  Json.Decode.decodeValue (Json.Decode.dict Json.Decode.value)
+    >> Result.withDefault Dict.empty
+
+
+----
+
+
+
         previous
           |> operation (object |> field "op", object |> field "data")
           |> (\x -> (x, x))
