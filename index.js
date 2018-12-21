@@ -20,29 +20,37 @@ module.exports = (flags = {}) => {
   const program = Main.init({ flags });
 
   return {
-    eval: (f, ...args) => new Promise((resolve) => {
-      program.ports.outgoing.subscribe(message => resolve(message));
+    eval: (f, ...args) => new Promise((resolve, reject) => {
+      program.ports.outgoing.subscribe(m => (
+        m.resolve ? resolve(m.value) : reject(m.error)
+      ));
       program.ports.eval.send({
         f,
         args,
       });
     }),
-    partial: (f, ...args) => data => new Promise((resolve) => {
-      program.ports.outgoing.subscribe(message => resolve(message));
+    partial: (f, ...args) => data => new Promise((resolve, reject) => {
+      program.ports.outgoing.subscribe(m => (
+        m.resolve ? resolve(m.value) : reject(m.error)
+      ));
       program.ports.eval.send({
         f,
         args: [data].concat(args),
       });
     }),
-    updateModel: (data, f = 'Dict.union', ...args) => new Promise((resolve) => {
-      program.ports.outgoing.subscribe(message => resolve(message));
+    updateModel: (data, f = 'Dict.union', ...args) => new Promise((resolve, reject) => {
+      program.ports.outgoing.subscribe(m => (
+        m.resolve ? resolve(m.value) : reject(m.error)
+      ));
       program.ports.updateModel.send({
         f,
         args: [data].concat(args),
       });
     }),
-    updateKey: (key, f, ...args) => new Promise((resolve) => {
-      program.ports.outgoing.subscribe(message => resolve(message));
+    updateKey: (key, f, ...args) => new Promise((resolve, reject) => {
+      program.ports.outgoing.subscribe(m => (
+        m.resolve ? resolve(m.value) : reject(m.error)
+      ));
       program.ports.updateKey.send({
         key,
         f,
