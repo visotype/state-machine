@@ -2,4 +2,4 @@
 
 Use Elm as a state container in a JS/Node app
 
-**Experimental**
+**Experimental: Not complete**
