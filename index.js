@@ -9,6 +9,8 @@ const isObject = (x = null) => {
 };
 
 module.exports = (flags = {}) => {
+  console.log(flags);
+  console.log(isObject(flags));
   if (!isObject(flags)) {
     throw new Error('Initial model passed to Elm must be an object; instead of `require("elm-state-machine")(0)` try `require("elm-state-machine")({ n: 0 })`');
   }
