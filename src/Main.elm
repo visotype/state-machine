@@ -1,3 +1,4 @@
+module Main exposing (main)
 
 -- Project
 import Ports

@@ -1,5 +1,7 @@
 port module Ports exposing
-  ( incoming
+  ( eval
+  , updateModel
+  , updateKey
   , outgoing
   )
 

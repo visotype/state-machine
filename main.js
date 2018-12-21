@@ -770,11 +770,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.e.d === region.g.d)
+	if (region.g.f === region.i.f)
 	{
-		return 'on line ' + region.e.d;
+		return 'on line ' + region.g.f;
 	}
-	return 'on lines ' + region.e.d + ' through ' + region.g.d;
+	return 'on lines ' + region.g.f + ' through ' + region.i.f;
 }
 
 
@@ -1841,9 +1841,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.m,
 		impl.o,
-		impl.n,
+		impl.q,
+		impl.p,
 		function() { return function() {} }
 	);
 });
@@ -2922,31 +2922,118 @@ var author$project$Model$fromJson = A2(
 	elm$json$Json$Decode$decodeValue(
 		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
 	elm$core$Result$withDefault(elm$core$Dict$empty));
-var author$project$Msg$Received = elm$core$Basics$identity;
-var author$project$Ports$incoming = _Platform_incomingPort('incoming', elm$json$Json$Decode$value);
-var elm$json$Json$Encode$object = function (pairs) {
-	return _Json_wrap(
-		A3(
-			elm$core$List$foldl,
-			F2(
-				function (_n0, obj) {
-					var k = _n0.a;
-					var v = _n0.b;
-					return A3(_Json_addField, k, v, obj);
-				}),
-			_Json_emptyObject(0),
-			pairs));
+var author$project$Msg$Eval = function (a) {
+	return {$: 0, a: a};
 };
-var author$project$Model$toJson = A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object);
-var elm$core$Basics$identity = function (x) {
-	return x;
+var author$project$Msg$UpdateKey = function (a) {
+	return {$: 2, a: a};
 };
-var author$project$Ports$outgoing = _Platform_outgoingPort('outgoing', elm$core$Basics$identity);
-var elm$core$Basics$always = F2(
-	function (a, _n0) {
-		return a;
+var author$project$Msg$UpdateModel = function (a) {
+	return {$: 1, a: a};
+};
+var author$project$Ports$eval = _Platform_incomingPort('eval', elm$json$Json$Decode$value);
+var author$project$Ports$updateKey = _Platform_incomingPort('updateKey', elm$json$Json$Decode$value);
+var author$project$Ports$updateModel = _Platform_incomingPort('updateModel', elm$json$Json$Decode$value);
+var author$project$Function$F2 = function (a) {
+	return {$: 1, a: a};
+};
+var elm$core$Result$toMaybe = function (result) {
+	if (!result.$) {
+		var v = result.a;
+		return elm$core$Maybe$Just(v);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$json$Json$Decode$float = _Json_decodeFloat;
+var author$project$Try$float = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$float),
+	elm$core$Result$toMaybe);
+var elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (!maybe.$) {
+			var value = maybe.a;
+			return elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
 	});
-var elm$core$Basics$not = _Basics_not;
+var elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 1) {
+			return elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 1) {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
+var author$project$Wrap$a2 = F4(
+	function (f, _n0, eo, _n1) {
+		var da = _n0.a;
+		var db = _n0.b;
+		var a = _n1.a;
+		var b = _n1.b;
+		return A2(
+			elm$core$Maybe$map,
+			eo,
+			A3(
+				elm$core$Maybe$map2,
+				f,
+				da(a),
+				db(b)));
+	});
+var elm$json$Json$Encode$float = _Json_wrap;
+var author$project$Core$basics = function (fName) {
+	switch (fName) {
+		case '(+)':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Basics$add,
+						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
+						elm$json$Json$Encode$float)));
+		case '(-)':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Basics$sub,
+						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
+						elm$json$Json$Encode$float)));
+		case '(*)':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Basics$mul,
+						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
+						elm$json$Json$Encode$float)));
+		case '(/)':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Basics$fdiv,
+						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
+						elm$json$Json$Encode$float)));
+		default:
+			return elm$core$Maybe$Nothing;
+	}
+};
+var author$project$Try$dict = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
+	elm$core$Result$toMaybe);
 var elm$core$Dict$foldl = F3(
 	function (func, acc, dict) {
 		foldl:
@@ -3410,17 +3497,163 @@ var elm$core$Dict$union = F2(
 	function (t1, t2) {
 		return A3(elm$core$Dict$foldl, elm$core$Dict$insert, t2, t1);
 	});
-var elm$core$Dict$update = F3(
-	function (targetKey, alter, dictionary) {
-		var _n0 = alter(
-			A2(elm$core$Dict$get, targetKey, dictionary));
-		if (!_n0.$) {
-			var value = _n0.a;
-			return A3(elm$core$Dict$insert, targetKey, value, dictionary);
-		} else {
-			return A2(elm$core$Dict$remove, targetKey, dictionary);
+var elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			elm$core$List$foldl,
+			F2(
+				function (_n0, obj) {
+					var k = _n0.a;
+					var v = _n0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(0),
+			pairs));
+};
+var author$project$Core$dict = function (fName) {
+	switch (fName) {
+		case 'union':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Dict$union,
+						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
+						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
+		case 'intersect':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Dict$intersect,
+						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
+						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
+		case 'diff':
+			return elm$core$Maybe$Just(
+				author$project$Function$F2(
+					A3(
+						author$project$Wrap$a2,
+						elm$core$Dict$diff,
+						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
+						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
+		default:
+			return elm$core$Maybe$Nothing;
+	}
+};
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
 		}
 	});
+var author$project$Core$get = function (expression) {
+	var parts = A2(elm$core$String$split, '.', expression);
+	var _n0 = function () {
+		var _n1 = _Utils_Tuple3(
+			elm$core$List$length(parts),
+			parts,
+			A2(elm$core$List$drop, 1, parts));
+		_n1$2:
+		while (true) {
+			if (_n1.b.b) {
+				if (!_n1.c.b) {
+					if (_n1.a === 1) {
+						var _n2 = _n1.b;
+						var first = _n2.a;
+						var rest = _n2.b;
+						return _Utils_Tuple2('Basics', first);
+					} else {
+						break _n1$2;
+					}
+				} else {
+					if ((_n1.a === 2) && (!_n1.c.b.b)) {
+						var _n3 = _n1.b;
+						var first = _n3.a;
+						var rest = _n3.b;
+						var _n4 = _n1.c;
+						var second = _n4.a;
+						return _Utils_Tuple2(first, second);
+					} else {
+						break _n1$2;
+					}
+				}
+			} else {
+				break _n1$2;
+			}
+		}
+		return _Utils_Tuple2('', '');
+	}();
+	var moduleName = _n0.a;
+	var fName = _n0.b;
+	switch (moduleName) {
+		case 'Basics':
+			return author$project$Core$basics(fName);
+		case 'Dict':
+			return author$project$Core$dict(fName);
+		default:
+			return elm$core$Maybe$Nothing;
+	}
+};
+var author$project$Try$tuple2 = function (ls) {
+	var _n0 = _Utils_Tuple2(
+		ls,
+		A2(elm$core$List$drop, 1, ls));
+	if ((_n0.a.b && _n0.b.b) && (!_n0.b.b.b)) {
+		var _n1 = _n0.a;
+		var first = _n1.a;
+		var rest = _n1.b;
+		var _n2 = _n0.b;
+		var second = _n2.a;
+		return elm$core$Maybe$Just(
+			_Utils_Tuple2(first, second));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var author$project$Try$tuple3 = function (ls) {
+	var _n0 = _Utils_Tuple3(
+		ls,
+		A2(elm$core$List$drop, 1, ls),
+		A2(elm$core$List$drop, 2, ls));
+	if (((_n0.a.b && _n0.b.b) && _n0.c.b) && (!_n0.c.b.b)) {
+		var _n1 = _n0.a;
+		var first = _n1.a;
+		var slice1 = _n1.b;
+		var _n2 = _n0.b;
+		var second = _n2.a;
+		var slice2 = _n2.b;
+		var _n3 = _n0.c;
+		var third = _n3.a;
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(first, second, third));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return elm$core$Maybe$Just(x);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
 var elm$core$Maybe$andThen = F2(
 	function (callback, maybeValue) {
 		if (!maybeValue.$) {
@@ -3430,24 +3663,132 @@ var elm$core$Maybe$andThen = F2(
 			return elm$core$Maybe$Nothing;
 		}
 	});
-var elm$core$Maybe$map = F2(
-	function (f, maybe) {
+var elm$core$Result$fromMaybe = F2(
+	function (err, maybe) {
 		if (!maybe.$) {
-			var value = maybe.a;
-			return elm$core$Maybe$Just(
-				f(value));
+			var v = maybe.a;
+			return elm$core$Result$Ok(v);
 		} else {
-			return elm$core$Maybe$Nothing;
+			return elm$core$Result$Err(err);
 		}
 	});
-var elm$core$Result$toMaybe = function (result) {
-	if (!result.$) {
-		var v = result.a;
-		return elm$core$Maybe$Just(v);
+var author$project$Handler$exec = function (op) {
+	var _n0 = author$project$Core$get(op.d);
+	if (!_n0.$) {
+		var f = _n0.a;
+		switch (f.$) {
+			case 0:
+				var f1 = f.a;
+				return A2(
+					elm$core$Result$fromMaybe,
+					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
+					A2(
+						elm$core$Maybe$andThen,
+						f1,
+						elm$core$List$head(op.e)));
+			case 1:
+				var f2 = f.a;
+				return A2(
+					elm$core$Result$fromMaybe,
+					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
+					A2(
+						elm$core$Maybe$andThen,
+						f2,
+						author$project$Try$tuple2(op.e)));
+			default:
+				var f3 = f.a;
+				return A2(
+					elm$core$Result$fromMaybe,
+					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
+					A2(
+						elm$core$Maybe$andThen,
+						f3,
+						author$project$Try$tuple3(op.e)));
+		}
 	} else {
-		return elm$core$Maybe$Nothing;
+		return elm$core$Result$Err('Specified Elm function was not found. Some core module functions ' + 'are not available through this interface.');
 	}
 };
+var elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (!maybe.$) {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var elm$json$Json$Decode$list = _Json_decodeList;
+var author$project$Resolve$list = A2(
+	elm$core$Basics$composeR,
+	elm$core$Maybe$andThen(
+		A2(
+			elm$core$Basics$composeR,
+			elm$json$Json$Decode$decodeValue(
+				elm$json$Json$Decode$list(elm$json$Json$Decode$value)),
+			elm$core$Result$toMaybe)),
+	elm$core$Maybe$withDefault(_List_Nil));
+var elm$json$Json$Decode$string = _Json_decodeString;
+var author$project$Resolve$string = A2(
+	elm$core$Basics$composeR,
+	elm$core$Maybe$andThen(
+		A2(
+			elm$core$Basics$composeR,
+			elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$string),
+			elm$core$Result$toMaybe)),
+	elm$core$Maybe$withDefault(''));
+var elm$json$Json$Decode$field = _Json_decodeField;
+var author$project$Try$field = function (key) {
+	return A2(
+		elm$core$Basics$composeR,
+		elm$json$Json$Decode$decodeValue(
+			A2(elm$json$Json$Decode$field, key, elm$json$Json$Decode$value)),
+		elm$core$Result$toMaybe);
+};
+var author$project$Handler$parse = function (object) {
+	return {
+		e: author$project$Resolve$list(
+			A2(author$project$Try$field, 'args', object)),
+		d: author$project$Resolve$string(
+			A2(author$project$Try$field, 'op', object))
+	};
+};
+var elm$json$Json$Encode$bool = _Json_wrap;
+var elm$json$Json$Encode$null = _Json_encodeNull;
+var elm$json$Json$Encode$string = _Json_wrap;
+var author$project$Handler$returnMessage = function (result) {
+	if (!result.$) {
+		var value = result.a;
+		return elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2('value', value),
+					_Utils_Tuple2(
+					'resolve',
+					elm$json$Json$Encode$bool(true)),
+					_Utils_Tuple2('error', elm$json$Json$Encode$null)
+				]));
+	} else {
+		var message = result.a;
+		return elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2('value', elm$json$Json$Encode$null),
+					_Utils_Tuple2(
+					'resolve',
+					elm$json$Json$Encode$bool(false)),
+					_Utils_Tuple2(
+					'error',
+					elm$json$Json$Encode$string(message))
+				]));
+	}
+};
+var elm$core$Basics$identity = function (x) {
+	return x;
+};
+var author$project$Ports$outgoing = _Platform_outgoingPort('outgoing', elm$core$Basics$identity);
+var elm$core$Platform$Cmd$batch = _Platform_batch;
+var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
 var elm$core$Tuple$mapSecond = F2(
 	function (func, _n0) {
 		var x = _n0.a;
@@ -3456,98 +3797,45 @@ var elm$core$Tuple$mapSecond = F2(
 			x,
 			func(y));
 	});
-var elm$json$Json$Decode$bool = _Json_decodeBool;
-var elm$json$Json$Decode$field = _Json_decodeField;
-var elm$json$Json$Decode$string = _Json_decodeString;
-var elm$json$Json$Encode$bool = _Json_wrap;
-var elm$json$Json$Encode$null = _Json_encodeNull;
 var author$project$Update$update = F2(
 	function (msg, previous) {
-		var field = function (key) {
-			return A2(
-				elm$core$Basics$composeR,
-				elm$json$Json$Decode$decodeValue(
-					A2(elm$json$Json$Decode$field, key, elm$json$Json$Decode$value)),
-				elm$core$Result$withDefault(elm$json$Json$Encode$null));
-		};
-		var decodeAsString = A2(
-			elm$core$Basics$composeR,
-			elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$string),
-			elm$core$Result$withDefault(''));
-		var decodeAsBool = A2(
-			elm$core$Basics$composeR,
-			elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$bool),
-			elm$core$Result$toMaybe);
-		var toggleState = A2(
-			elm$core$Basics$composeR,
-			elm$core$Maybe$andThen(decodeAsBool),
-			A2(
-				elm$core$Basics$composeR,
-				elm$core$Maybe$map(elm$core$Basics$not),
-				elm$core$Maybe$map(elm$json$Json$Encode$bool)));
-		var operation = function (_n2) {
-			var flag = _n2.a;
-			var content = _n2.b;
-			var _n1 = decodeAsString(flag);
-			switch (_n1) {
-				case 'union':
-					return elm$core$Dict$union(
-						author$project$Model$fromJson(content));
-				case 'intersect':
-					return elm$core$Dict$intersect(
-						author$project$Model$fromJson(content));
-				case 'diff':
-					return elm$core$Dict$diff(
-						author$project$Model$fromJson(content));
-				case 'toggle':
-					return A2(
-						elm$core$Dict$update,
-						decodeAsString(content),
-						toggleState);
-				case 'remove':
-					return elm$core$Dict$remove(
-						decodeAsString(content));
-				case 'empty':
-					return elm$core$Basics$always(elm$core$Dict$empty);
-				case 'identity':
-					return elm$core$Basics$always(
-						author$project$Model$fromJson(content));
-				default:
-					return elm$core$Basics$identity;
-			}
-		};
-		var object = msg;
-		return A2(
-			elm$core$Tuple$mapSecond,
-			A2(elm$core$Basics$composeR, author$project$Model$toJson, author$project$Ports$outgoing),
-			function (x) {
-				return _Utils_Tuple2(x, x);
-			}(
-				A2(
-					operation,
-					_Utils_Tuple2(
-						A2(field, 'op', object),
-						A2(field, 'data', object)),
-					previous)));
+		switch (msg.$) {
+			case 0:
+				var object = msg.a;
+				return A2(
+					elm$core$Tuple$mapSecond,
+					A2(elm$core$Basics$composeR, author$project$Handler$returnMessage, author$project$Ports$outgoing),
+					function (result) {
+						return _Utils_Tuple2(previous, result);
+					}(
+						author$project$Handler$exec(
+							author$project$Handler$parse(object))));
+			case 1:
+				var object = msg.a;
+				return _Utils_Tuple2(previous, elm$core$Platform$Cmd$none);
+			default:
+				var object = msg.a;
+				return _Utils_Tuple2(previous, elm$core$Platform$Cmd$none);
+		}
 	});
 var elm$core$Platform$worker = _Platform_worker;
-var elm$core$Platform$Cmd$batch = _Platform_batch;
-var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
 var elm$core$Platform$Sub$batch = _Platform_batch;
 var author$project$Main$main = elm$core$Platform$worker(
 	{
-		m: function (object) {
+		o: function (object) {
 			return _Utils_Tuple2(
 				author$project$Model$fromJson(object),
 				elm$core$Platform$Cmd$none);
 		},
-		n: function (model) {
+		p: function (model) {
 			return elm$core$Platform$Sub$batch(
 				_List_fromArray(
 					[
-						author$project$Ports$incoming(elm$core$Basics$identity)
+						author$project$Ports$eval(author$project$Msg$Eval),
+						author$project$Ports$updateModel(author$project$Msg$UpdateModel),
+						author$project$Ports$updateKey(author$project$Msg$UpdateKey)
 					]));
 		},
-		o: author$project$Update$update
+		q: author$project$Update$update
 	});
 _Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));

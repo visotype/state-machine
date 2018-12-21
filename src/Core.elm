@@ -5,10 +5,13 @@ module Core exposing
 import Dict exposing (Dict)
 import Json.Decode exposing (Value)
 import Json.Encode as Encode
+
+import Function exposing (Function(..))
+import Wrap
 import Try
 
 
-get : String -> Maybe ((Value, Value) -> Maybe Value)
+get : String -> Maybe Function
 get expression =
   let
     parts =
@@ -33,48 +36,50 @@ get expression =
         Nothing
 
 
-basics : String -> Maybe ((Value, Value) -> Maybe Value)
+basics : String -> Maybe Function
 basics fName =
-  let
-    wrap f (x, y) =
-      Maybe.map2 f (Try.float x) (Try.float y)
-        |> Maybe.map Encode.float
-
-  in
   case fName of
     "(+)" ->
-      Just (wrap (+))
+      Wrap.a2 (+) (Try.float, Try.float) Encode.float
+        |> F2
+        |> Just
 
     "(-)" ->
-      Just (wrap (-))
+      Wrap.a2 (-) (Try.float, Try.float) Encode.float
+        |> F2
+        |> Just
 
     "(*)" ->
-      Just (wrap (*))
+      Wrap.a2 (*) (Try.float, Try.float) Encode.float
+        |> F2
+        |> Just
 
     "(/)" ->
-      Just (wrap (/))
+      Wrap.a2 (/) (Try.float, Try.float) Encode.float
+        |> F2
+        |> Just
 
     _ ->
       Nothing
 
 
-dict : String -> Maybe ((Value, Value) -> Maybe Value)
+dict : String -> Maybe Function
 dict fName =
-  let
-    wrap f (x, y) =
-      Maybe.map2 f (Try.dict x) (Try.dict y)
-        |> Maybe.map (Dict.toList >> Encode.object)
+  case fName of
+    "union" ->
+      Wrap.a2 (Dict.union) (Try.dict, Try.dict) (Dict.toList >> Encode.object)
+        |> F2
+        |> Just
 
-  in
-    case fName of
-      "union" ->
-        Just (wrap Dict.union)
+    "intersect" ->
+      Wrap.a2 (Dict.intersect) (Try.dict, Try.dict) (Dict.toList >> Encode.object)
+        |> F2
+        |> Just
 
-      "intersect" ->
-        Just (wrap Dict.intersect)
+    "diff" ->
+      Wrap.a2 (Dict.diff) (Try.dict, Try.dict) (Dict.toList >> Encode.object)
+        |> F2
+        |> Just
 
-      "diff" ->
-        Just (wrap Dict.diff)
-
-      _ ->
-        Nothing
+    _ ->
+      Nothing
