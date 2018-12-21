@@ -25,14 +25,14 @@ type alias Operation =
 
 parse : Value -> Operation
 parse object =
-  { f = object |> Try.field "op" |> Resolve.string
+  { f = object |> Try.field "f" |> Resolve.string
   , args = object |> Try.field "args" |> Resolve.list
   }
 
 parseKeyed : Value -> (String, Operation)
 parseKeyed object =
   ( object |> Try.field "key" |> Resolve.string
-  , { f = object |> Try.field "op" |> Resolve.string
+  , { f = object |> Try.field "f" |> Resolve.string
     , args = object |> Try.field "args" |> Resolve.list
     }
   )

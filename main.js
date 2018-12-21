@@ -3750,7 +3750,7 @@ var author$project$Handler$parse = function (object) {
 		e: author$project$Resolve$list(
 			A2(author$project$Try$field, 'args', object)),
 		d: author$project$Resolve$string(
-			A2(author$project$Try$field, 'op', object))
+			A2(author$project$Try$field, 'f', object))
 	};
 };
 var elm$json$Json$Encode$bool = _Json_wrap;
