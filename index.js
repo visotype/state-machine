@@ -5,14 +5,16 @@ const isObject = (x = null) => {
     return false;
   }
 
-  return (x.constructor === 'object');
+  return (x.constructor === Object);
 };
 
 module.exports = (flags = {}) => {
-  console.log(flags);
-  console.log(isObject(flags));
   if (!isObject(flags)) {
-    throw new Error('Initial model passed to Elm must be an object; instead of `require("elm-state-machine")(0)` try `require("elm-state-machine")({ n: 0 })`');
+    throw new Error([
+      'Initial model passed to Elm must be an object.',
+      'Assuming you\'re importing this module as `elmStateMachine`,',
+      'instead of `elmStateMachine(0)`, try `elmStateMachine({ value: 0 })``',
+    ].join(' '));
   }
 
   const program = Main.init({ flags });
