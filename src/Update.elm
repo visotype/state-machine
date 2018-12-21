@@ -45,9 +45,9 @@ parse object =
 
 parseKeyed : Json.Decode.Value -> (String, Operation)
 parseKeyed object =
-  ( object |> Try.field "key" |> Try.string
-  , { f = object |> Try.field "op" |> Try.string
-    , args = object |> Try.field "args" |> Try.list
+  ( object |> Try.field "key" |> Resolve.string
+  , { f = object |> Try.field "op" |> Resolve.string
+    , args = object |> Try.field "args" |> Resolve.list
     }
   )
 
@@ -60,4 +60,4 @@ exec op =
         |> Maybe.andThen f
 
     Nothing ->
-      Nothing
+      (Nothing, "Function" + op.f
