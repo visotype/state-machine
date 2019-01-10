@@ -1,15 +1,15 @@
 const { Main } = require('./main.js').Elm;
 
 
-const getModel = program => () => new Promise((resolve, reject) => {
+const getModelFrom = program => () => new Promise((resolve, reject) => {
   program.ports.outgoing.subscribe(m => (
     m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
   ));
-  program.ports.getModel.send();
+  program.ports.getModel.send({});
 });
 
 
-const getKey = program => key => new Promise((resolve, reject) => {
+const getKeyFrom = program => key => new Promise((resolve, reject) => {
   program.ports.outgoing.subscribe(m => (
     m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
   ));
@@ -17,12 +17,11 @@ const getKey = program => key => new Promise((resolve, reject) => {
 });
 
 
-const updateKey = program => (key, f, ...args) => new Promise((resolve, reject) => {
+const updateKeyFrom = program => (key, f, ...args) => new Promise((resolve, reject) => {
   program.ports.outgoing.subscribe(m => (
     m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
   ));
-  program.ports.updateKey.send({
-    key,
+  program.ports.updateKey.send(key, {
     f,
     args,
   });
@@ -46,9 +45,13 @@ module.exports = async (initial) => {
     }
   });
 
+  const getModel = await getModelFrom(program);
+  const getKey = await getKeyFrom(program);
+  const updateKey = await updateKeyFrom(program);
+
   return {
-    getModel: getModel(program),
-    getKey: getKey(program),
-    updateKey: updateKey(program),
+    getModel,
+    getKey,
+    updateKey,
   };
 };

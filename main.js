@@ -784,11 +784,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.e.d === region.f.d)
+	if (region.f.d === region.g.d)
 	{
-		return 'on line ' + region.e.d;
+		return 'on line ' + region.f.d;
 	}
-	return 'on lines ' + region.e.d + ' through ' + region.f.d;
+	return 'on lines ' + region.f.d + ' through ' + region.g.d;
 }
 
 
@@ -1644,6 +1644,43 @@ var _Json_encodeNull = _Json_wrap(null);
 
 
 
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
+};
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
+
+
+
 // TASKS
 
 function _Scheduler_succeed(value)
@@ -2311,50 +2348,15 @@ function _Platform_mergeExportsDebug(moduleName, obj, exports)
 			: (obj[name] = exports[name]);
 	}
 }
-
-
-
-var _Bitwise_and = F2(function(a, b)
-{
-	return a & b;
-});
-
-var _Bitwise_or = F2(function(a, b)
-{
-	return a | b;
-});
-
-var _Bitwise_xor = F2(function(a, b)
-{
-	return a ^ b;
-});
-
-function _Bitwise_complement(a)
-{
-	return ~a;
+var author$project$Main$GetKey = function (a) {
+	return {$: 1, a: a};
 };
-
-var _Bitwise_shiftLeftBy = F2(function(offset, a)
-{
-	return a << offset;
-});
-
-var _Bitwise_shiftRightBy = F2(function(offset, a)
-{
-	return a >> offset;
-});
-
-var _Bitwise_shiftRightZfBy = F2(function(offset, a)
-{
-	return a >>> offset;
-});
-var author$project$Main$Receive = elm$core$Basics$identity;
-var elm$core$Basics$False = 1;
-var elm$core$Basics$True = 0;
-var elm$core$Basics$apR = F2(
-	function (x, f) {
-		return f(x);
-	});
+var author$project$Main$GetModel = function (a) {
+	return {$: 0, a: a};
+};
+var author$project$Main$UpdateKey = function (a) {
+	return {$: 2, a: a};
+};
 var elm$core$Array$branchFactor = 32;
 var elm$core$Array$Array_elm_builtin = F4(
 	function (a, b, c, d) {
@@ -2502,6 +2504,10 @@ var elm$core$Array$compressNodes = F2(
 			}
 		}
 	});
+var elm$core$Basics$apR = F2(
+	function (x, f) {
+		return f(x);
+	});
 var elm$core$Basics$eq = _Utils_equal;
 var elm$core$Tuple$first = function (_n0) {
 	var x = _n0.a;
@@ -2560,6 +2566,7 @@ var elm$core$Array$builderToArray = F2(
 				builder.b);
 		}
 	});
+var elm$core$Basics$False = 1;
 var elm$core$Basics$idiv = _Basics_idiv;
 var elm$core$Basics$lt = _Utils_lt;
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
@@ -2612,6 +2619,7 @@ var elm$core$Result$Err = function (a) {
 var elm$core$Result$Ok = function (a) {
 	return {$: 0, a: a};
 };
+var elm$core$Basics$True = 0;
 var elm$core$Result$isOk = function (result) {
 	if (!result.$) {
 		return true;
@@ -2824,6 +2832,160 @@ var elm$json$Json$Decode$errorToStringHelp = F2(
 			}
 		}
 	});
+var elm$json$Json$Decode$value = _Json_decodeValue;
+var author$project$Main$getKey = _Platform_incomingPort('getKey', elm$json$Json$Decode$value);
+var author$project$Main$getModel = _Platform_incomingPort('getModel', elm$json$Json$Decode$value);
+var elm$core$Basics$composeR = F3(
+	function (f, g, x) {
+		return g(
+			f(x));
+	});
+var elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
+var elm$core$Dict$empty = elm$core$Dict$RBEmpty_elm_builtin;
+var elm$core$Result$withDefault = F2(
+	function (def, result) {
+		if (!result.$) {
+			var a = result.a;
+			return a;
+		} else {
+			return def;
+		}
+	});
+var elm$json$Json$Decode$decodeValue = _Json_run;
+var elm$core$Dict$Black = 1;
+var elm$core$Dict$RBNode_elm_builtin = F5(
+	function (a, b, c, d, e) {
+		return {$: -1, a: a, b: b, c: c, d: d, e: e};
+	});
+var elm$core$Basics$compare = _Utils_compare;
+var elm$core$Dict$Red = 0;
+var elm$core$Dict$balance = F5(
+	function (color, key, value, left, right) {
+		if ((right.$ === -1) && (!right.a)) {
+			var _n1 = right.a;
+			var rK = right.b;
+			var rV = right.c;
+			var rLeft = right.d;
+			var rRight = right.e;
+			if ((left.$ === -1) && (!left.a)) {
+				var _n3 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var lLeft = left.d;
+				var lRight = left.e;
+				return A5(
+					elm$core$Dict$RBNode_elm_builtin,
+					0,
+					key,
+					value,
+					A5(elm$core$Dict$RBNode_elm_builtin, 1, lK, lV, lLeft, lRight),
+					A5(elm$core$Dict$RBNode_elm_builtin, 1, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					elm$core$Dict$RBNode_elm_builtin,
+					color,
+					rK,
+					rV,
+					A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, left, rLeft),
+					rRight);
+			}
+		} else {
+			if ((((left.$ === -1) && (!left.a)) && (left.d.$ === -1)) && (!left.d.a)) {
+				var _n5 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var _n6 = left.d;
+				var _n7 = _n6.a;
+				var llK = _n6.b;
+				var llV = _n6.c;
+				var llLeft = _n6.d;
+				var llRight = _n6.e;
+				var lRight = left.e;
+				return A5(
+					elm$core$Dict$RBNode_elm_builtin,
+					0,
+					lK,
+					lV,
+					A5(elm$core$Dict$RBNode_elm_builtin, 1, llK, llV, llLeft, llRight),
+					A5(elm$core$Dict$RBNode_elm_builtin, 1, key, value, lRight, right));
+			} else {
+				return A5(elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
+			}
+		}
+	});
+var elm$core$Dict$insertHelp = F3(
+	function (key, value, dict) {
+		if (dict.$ === -2) {
+			return A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, elm$core$Dict$RBEmpty_elm_builtin, elm$core$Dict$RBEmpty_elm_builtin);
+		} else {
+			var nColor = dict.a;
+			var nKey = dict.b;
+			var nValue = dict.c;
+			var nLeft = dict.d;
+			var nRight = dict.e;
+			var _n1 = A2(elm$core$Basics$compare, key, nKey);
+			switch (_n1) {
+				case 0:
+					return A5(
+						elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						A3(elm$core$Dict$insertHelp, key, value, nLeft),
+						nRight);
+				case 1:
+					return A5(elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
+				default:
+					return A5(
+						elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						nLeft,
+						A3(elm$core$Dict$insertHelp, key, value, nRight));
+			}
+		}
+	});
+var elm$core$Dict$insert = F3(
+	function (key, value, dict) {
+		var _n0 = A3(elm$core$Dict$insertHelp, key, value, dict);
+		if ((_n0.$ === -1) && (!_n0.a)) {
+			var _n1 = _n0.a;
+			var k = _n0.b;
+			var v = _n0.c;
+			var l = _n0.d;
+			var r = _n0.e;
+			return A5(elm$core$Dict$RBNode_elm_builtin, 1, k, v, l, r);
+		} else {
+			var x = _n0;
+			return x;
+		}
+	});
+var elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		elm$core$List$foldl,
+		F2(
+			function (_n0, dict) {
+				var key = _n0.a;
+				var value = _n0.b;
+				return A3(elm$core$Dict$insert, key, value, dict);
+			}),
+		elm$core$Dict$empty,
+		assocs);
+};
+var elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
+var elm$json$Json$Decode$map = _Json_map1;
+var elm$json$Json$Decode$dict = function (decoder) {
+	return A2(
+		elm$json$Json$Decode$map,
+		elm$core$Dict$fromList,
+		elm$json$Json$Decode$keyValuePairs(decoder));
+};
+var author$project$Main$tryDict = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
+	elm$core$Result$withDefault(elm$core$Dict$empty));
 var elm$json$Json$Encode$bool = _Json_wrap;
 var elm$json$Json$Encode$null = _Json_encodeNull;
 var elm$json$Json$Encode$object = function (pairs) {
@@ -2867,42 +3029,43 @@ var author$project$Main$encodeResult = function (result) {
 				]));
 	}
 };
-var elm$json$Json$Decode$value = _Json_decodeValue;
-var author$project$Main$incoming = _Platform_incomingPort('incoming', elm$json$Json$Decode$value);
 var elm$core$Basics$identity = function (x) {
 	return x;
 };
 var author$project$Main$outgoing = _Platform_outgoingPort('outgoing', elm$core$Basics$identity);
-var elm$core$Basics$composeR = F3(
-	function (f, g, x) {
-		return g(
-			f(x));
+var elm$core$Basics$always = F2(
+	function (a, _n0) {
+		return a;
 	});
-var elm$core$List$singleton = function (value) {
-	return _List_fromArray(
-		[value]);
-};
-var elm$core$Platform$worker = _Platform_worker;
-var elm$core$Platform$Cmd$batch = _Platform_batch;
-var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
-var elm$core$Platform$Sub$batch = _Platform_batch;
-var elm$core$Tuple$mapBoth = F3(
-	function (funcA, funcB, _n0) {
-		var x = _n0.a;
-		var y = _n0.b;
-		return _Utils_Tuple2(
-			funcA(x),
-			funcB(y));
-	});
-var elm$json$Json$Decode$succeed = _Json_succeed;
-var elm$core$Result$andThen = F2(
-	function (callback, result) {
-		if (!result.$) {
-			var value = result.a;
-			return callback(value);
-		} else {
-			var msg = result.a;
-			return elm$core$Result$Err(msg);
+var elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === -2) {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
+				switch (_n1) {
+					case 0:
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 1:
+						return elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
 		}
 	});
 var elm$core$Result$fromMaybe = F2(
@@ -2912,6 +3075,73 @@ var elm$core$Result$fromMaybe = F2(
 			return elm$core$Result$Ok(v);
 		} else {
 			return elm$core$Result$Err(err);
+		}
+	});
+var author$project$Main$tryDictGet = function (result) {
+	if (!result.$) {
+		var key = result.a;
+		return A2(
+			elm$core$Basics$composeR,
+			elm$core$Dict$get(key),
+			elm$core$Result$fromMaybe('\'' + (key + '\' is not a key in your model.')));
+	} else {
+		var error = result.a;
+		return elm$core$Basics$always(
+			elm$core$Result$Err(error));
+	}
+};
+var elm$json$Json$Decode$field = _Json_decodeField;
+var elm$json$Json$Decode$string = _Json_decodeString;
+var author$project$Main$tryStringField = F2(
+	function (name, object) {
+		var _n0 = A2(
+			elm$json$Json$Decode$decodeValue,
+			A2(elm$json$Json$Decode$field, name, elm$json$Json$Decode$value),
+			object);
+		if (!_n0.$) {
+			var value = _n0.a;
+			var _n1 = A2(elm$json$Json$Decode$decodeValue, elm$json$Json$Decode$string, value);
+			if (!_n1.$) {
+				var string = _n1.a;
+				return elm$core$Result$Ok(string);
+			} else {
+				return elm$core$Result$Err('The `' + (name + '` argument must be a string.'));
+			}
+		} else {
+			return elm$core$Result$Err('This function requires a `' + (name + '` argument.'));
+		}
+	});
+var elm$json$Json$Decode$list = _Json_decodeList;
+var author$project$Main$tryListField = F2(
+	function (name, object) {
+		var _n0 = A2(
+			elm$json$Json$Decode$decodeValue,
+			A2(elm$json$Json$Decode$field, name, elm$json$Json$Decode$value),
+			object);
+		if (!_n0.$) {
+			var value = _n0.a;
+			var _n1 = A2(
+				elm$json$Json$Decode$decodeValue,
+				elm$json$Json$Decode$list(elm$json$Json$Decode$value),
+				value);
+			if (!_n1.$) {
+				var list = _n1.a;
+				return elm$core$Result$Ok(list);
+			} else {
+				return elm$core$Result$Err('The `' + (name + '` argument must be an array.'));
+			}
+		} else {
+			return elm$core$Result$Err('This function requires a `' + (name + '` argument.'));
+		}
+	});
+var elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (!result.$) {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return elm$core$Result$Err(msg);
 		}
 	});
 var visotype$elm_eval$Eval$Try$List$empty = function (ls) {
@@ -3000,8 +3230,8 @@ var visotype$elm_eval$Eval$Call$fromLib = F2(
 						A2(
 							elm$core$Result$fromMaybe,
 							'The `' + (call.h + ('` function expects no arguments, but it got ' + (elm$core$String$fromInt(
-								elm$core$List$length(call.g)) + ' instead.'))),
-							visotype$elm_eval$Eval$Try$List$empty(call.g)));
+								elm$core$List$length(call.e)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$empty(call.e)));
 				case 1:
 					var f1 = f.a;
 					return A2(
@@ -3010,8 +3240,8 @@ var visotype$elm_eval$Eval$Call$fromLib = F2(
 						A2(
 							elm$core$Result$fromMaybe,
 							'The `' + (call.h + ('` function expects 1 argument, but it got ' + (elm$core$String$fromInt(
-								elm$core$List$length(call.g)) + ' instead.'))),
-							visotype$elm_eval$Eval$Try$List$singleton(call.g)));
+								elm$core$List$length(call.e)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$singleton(call.e)));
 				case 2:
 					var f2 = f.a;
 					return A2(
@@ -3020,8 +3250,8 @@ var visotype$elm_eval$Eval$Call$fromLib = F2(
 						A2(
 							elm$core$Result$fromMaybe,
 							'The `' + (call.h + ('` function expects 2 arguments, but it got ' + (elm$core$String$fromInt(
-								elm$core$List$length(call.g)) + ' instead.'))),
-							visotype$elm_eval$Eval$Try$List$tuple2(call.g)));
+								elm$core$List$length(call.e)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$tuple2(call.e)));
 				default:
 					var f3 = f.a;
 					return A2(
@@ -3030,8 +3260,8 @@ var visotype$elm_eval$Eval$Call$fromLib = F2(
 						A2(
 							elm$core$Result$fromMaybe,
 							'The `' + (call.h + ('` function expects 3 arguments, but it got ' + (elm$core$String$fromInt(
-								elm$core$List$length(call.g)) + ' instead.'))),
-							visotype$elm_eval$Eval$Try$List$tuple3(call.g)));
+								elm$core$List$length(call.e)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$tuple3(call.e)));
 			}
 		} else {
 			var e = _n0.a;
@@ -3676,7 +3906,6 @@ var elm$core$Result$toMaybe = function (result) {
 	}
 };
 var elm$json$Json$Decode$array = _Json_decodeArray;
-var elm$json$Json$Decode$decodeValue = _Json_run;
 var visotype$elm_eval$Eval$Try$array = A2(
 	elm$core$Basics$composeR,
 	elm$json$Json$Decode$decodeValue(
@@ -3809,13 +4038,10 @@ var elm$core$Maybe$withDefault = F2(
 			return _default;
 		}
 	});
-var elm$json$Json$Decode$list = _Json_decodeList;
-var elm$json$Json$Decode$map = _Json_map1;
 var elm$core$String$foldr = _String_foldr;
 var elm$core$String$toList = function (string) {
 	return A3(elm$core$String$foldr, elm$core$List$cons, _List_Nil, string);
 };
-var elm$json$Json$Decode$string = _Json_decodeString;
 var visotype$elm_eval$Eval$Try$string = A2(
 	elm$core$Basics$composeR,
 	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$string),
@@ -5483,67 +5709,6 @@ var elm$core$Dict$foldl = F3(
 			}
 		}
 	});
-var elm$core$Dict$Black = 1;
-var elm$core$Dict$RBNode_elm_builtin = F5(
-	function (a, b, c, d, e) {
-		return {$: -1, a: a, b: b, c: c, d: d, e: e};
-	});
-var elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
-var elm$core$Dict$Red = 0;
-var elm$core$Dict$balance = F5(
-	function (color, key, value, left, right) {
-		if ((right.$ === -1) && (!right.a)) {
-			var _n1 = right.a;
-			var rK = right.b;
-			var rV = right.c;
-			var rLeft = right.d;
-			var rRight = right.e;
-			if ((left.$ === -1) && (!left.a)) {
-				var _n3 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var lLeft = left.d;
-				var lRight = left.e;
-				return A5(
-					elm$core$Dict$RBNode_elm_builtin,
-					0,
-					key,
-					value,
-					A5(elm$core$Dict$RBNode_elm_builtin, 1, lK, lV, lLeft, lRight),
-					A5(elm$core$Dict$RBNode_elm_builtin, 1, rK, rV, rLeft, rRight));
-			} else {
-				return A5(
-					elm$core$Dict$RBNode_elm_builtin,
-					color,
-					rK,
-					rV,
-					A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, left, rLeft),
-					rRight);
-			}
-		} else {
-			if ((((left.$ === -1) && (!left.a)) && (left.d.$ === -1)) && (!left.d.a)) {
-				var _n5 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var _n6 = left.d;
-				var _n7 = _n6.a;
-				var llK = _n6.b;
-				var llV = _n6.c;
-				var llLeft = _n6.d;
-				var llRight = _n6.e;
-				var lRight = left.e;
-				return A5(
-					elm$core$Dict$RBNode_elm_builtin,
-					0,
-					lK,
-					lV,
-					A5(elm$core$Dict$RBNode_elm_builtin, 1, llK, llV, llLeft, llRight),
-					A5(elm$core$Dict$RBNode_elm_builtin, 1, key, value, lRight, right));
-			} else {
-				return A5(elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
-			}
-		}
-	});
 var elm$core$Dict$getMin = function (dict) {
 	getMin:
 	while (true) {
@@ -5917,99 +6082,6 @@ var elm$core$Dict$diff = F2(
 			t1,
 			t2);
 	});
-var elm$core$Dict$empty = elm$core$Dict$RBEmpty_elm_builtin;
-var elm$core$Basics$compare = _Utils_compare;
-var elm$core$Dict$insertHelp = F3(
-	function (key, value, dict) {
-		if (dict.$ === -2) {
-			return A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, elm$core$Dict$RBEmpty_elm_builtin, elm$core$Dict$RBEmpty_elm_builtin);
-		} else {
-			var nColor = dict.a;
-			var nKey = dict.b;
-			var nValue = dict.c;
-			var nLeft = dict.d;
-			var nRight = dict.e;
-			var _n1 = A2(elm$core$Basics$compare, key, nKey);
-			switch (_n1) {
-				case 0:
-					return A5(
-						elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						A3(elm$core$Dict$insertHelp, key, value, nLeft),
-						nRight);
-				case 1:
-					return A5(elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
-				default:
-					return A5(
-						elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						nLeft,
-						A3(elm$core$Dict$insertHelp, key, value, nRight));
-			}
-		}
-	});
-var elm$core$Dict$insert = F3(
-	function (key, value, dict) {
-		var _n0 = A3(elm$core$Dict$insertHelp, key, value, dict);
-		if ((_n0.$ === -1) && (!_n0.a)) {
-			var _n1 = _n0.a;
-			var k = _n0.b;
-			var v = _n0.c;
-			var l = _n0.d;
-			var r = _n0.e;
-			return A5(elm$core$Dict$RBNode_elm_builtin, 1, k, v, l, r);
-		} else {
-			var x = _n0;
-			return x;
-		}
-	});
-var elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		elm$core$List$foldl,
-		F2(
-			function (_n0, dict) {
-				var key = _n0.a;
-				var value = _n0.b;
-				return A3(elm$core$Dict$insert, key, value, dict);
-			}),
-		elm$core$Dict$empty,
-		assocs);
-};
-var elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === -2) {
-				return elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
-				switch (_n1) {
-					case 0:
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 1:
-						return elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
 var elm$core$Dict$filter = F2(
 	function (isGood, dict) {
 		return A3(
@@ -6087,13 +6159,6 @@ var elm$core$Dict$values = function (dict) {
 };
 var visotype$elm_eval$Eval$Encode$dict = A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object);
 var visotype$elm_eval$Eval$Encode$listString = elm$json$Json$Encode$list(elm$json$Json$Encode$string);
-var elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
-var elm$json$Json$Decode$dict = function (decoder) {
-	return A2(
-		elm$json$Json$Decode$map,
-		elm$core$Dict$fromList,
-		elm$json$Json$Decode$keyValuePairs(decoder));
-};
 var visotype$elm_eval$Eval$Try$dict = A2(
 	elm$core$Basics$composeR,
 	elm$json$Json$Decode$decodeValue(
@@ -7495,65 +7560,166 @@ var visotype$elm_eval$Eval$Core$lib = function (expression) {
 	}
 };
 var visotype$elm_eval$Eval$coreLib = visotype$elm_eval$Eval$Core$lib;
-var visotype$elm_eval$Eval$Resolve$list = A2(
-	elm$core$Basics$composeR,
-	elm$core$Maybe$andThen(
-		A2(
-			elm$core$Basics$composeR,
-			elm$json$Json$Decode$decodeValue(
-				elm$json$Json$Decode$list(elm$json$Json$Decode$value)),
-			elm$core$Result$toMaybe)),
-	elm$core$Maybe$withDefault(_List_Nil));
-var visotype$elm_eval$Eval$Resolve$string = A2(
-	elm$core$Basics$composeR,
-	elm$core$Maybe$andThen(
-		A2(
-			elm$core$Basics$composeR,
-			elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$string),
-			elm$core$Result$toMaybe)),
-	elm$core$Maybe$withDefault(''));
-var elm$json$Json$Decode$field = _Json_decodeField;
-var visotype$elm_eval$Eval$Try$field = function (key) {
-	return A2(
-		elm$core$Basics$composeR,
-		elm$json$Json$Decode$decodeValue(
-			A2(elm$json$Json$Decode$field, key, elm$json$Json$Decode$value)),
-		elm$core$Result$toMaybe);
-};
-var visotype$elm_eval$Eval$Call$parse = function (object) {
-	return {
-		g: visotype$elm_eval$Eval$Resolve$list(
-			A2(visotype$elm_eval$Eval$Try$field, 'args', object)),
-		h: visotype$elm_eval$Eval$Resolve$string(
-			A2(visotype$elm_eval$Eval$Try$field, 'f', object))
-	};
-};
-var visotype$elm_eval$Eval$parse = visotype$elm_eval$Eval$Call$parse;
-var author$project$Main$main = elm$core$Platform$worker(
-	{
-		i: function (_n0) {
-			return _Utils_Tuple2(elm$core$Maybe$Nothing, elm$core$Platform$Cmd$none);
-		},
-		j: function (_n1) {
-			return elm$core$Platform$Sub$batch(
-				elm$core$List$singleton(
-					author$project$Main$incoming(elm$core$Basics$identity)));
-		},
-		k: F2(
-			function (_n2, _n3) {
-				var object = _n2;
-				return A3(
-					elm$core$Tuple$mapBoth,
-					elm$core$Maybe$Just,
+var author$project$Main$updateModel = F2(
+	function (object, previous) {
+		var keyResult = A2(author$project$Main$tryStringField, 'key', object);
+		var tryInsert = function (v) {
+			if (!keyResult.$) {
+				var ks = keyResult.a;
+				return A2(
+					elm$core$Basics$composeR,
+					A2(elm$core$Dict$insert, ks, v),
+					elm$core$Result$Ok);
+			} else {
+				var error = keyResult.a;
+				return elm$core$Basics$always(
+					elm$core$Result$Err(error));
+			}
+		};
+		var callResult = function () {
+			var _n2 = _Utils_Tuple2(
+				A2(author$project$Main$tryStringField, 'f', object),
+				A2(author$project$Main$tryListField, 'args', object));
+			if (!_n2.a.$) {
+				if (!_n2.b.$) {
+					var f = _n2.a.a;
+					var args = _n2.b.a;
+					return elm$core$Result$Ok(
+						{e: args, h: f});
+				} else {
+					var b = _n2.b.a;
+					return elm$core$Result$Err(b);
+				}
+			} else {
+				if (_n2.b.$ === 1) {
+					var a = _n2.a.a;
+					var b = _n2.b.a;
+					return elm$core$Result$Err(a + (' : ' + b));
+				} else {
+					var a = _n2.a.a;
+					return elm$core$Result$Err(a);
+				}
+			}
+		}();
+		var appendToCall = function (lastArg) {
+			if (!callResult.$) {
+				var call = callResult.a;
+				return elm$core$Result$Ok(
+					_Utils_update(
+						call,
+						{
+							e: _Utils_ap(
+								call.e,
+								_List_fromArray(
+									[lastArg]))
+						}));
+			} else {
+				var error = callResult.a;
+				return elm$core$Result$Err(error);
+			}
+		};
+		var tryCall = A2(
+			elm$core$Result$andThen,
+			visotype$elm_eval$Eval$call(visotype$elm_eval$Eval$coreLib),
+			A2(
+				elm$core$Result$andThen,
+				appendToCall,
+				A2(author$project$Main$tryDictGet, keyResult, previous)));
+		if (!tryCall.$) {
+			var value = tryCall.a;
+			return A2(tryInsert, value, previous);
+		} else {
+			var error = tryCall.a;
+			return elm$core$Result$Err(error);
+		}
+	});
+var elm$core$Tuple$mapFirst = F2(
+	function (func, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return _Utils_Tuple2(
+			func(x),
+			y);
+	});
+var elm$core$Tuple$mapSecond = F2(
+	function (func, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return _Utils_Tuple2(
+			x,
+			func(y));
+	});
+var author$project$Main$update = F2(
+	function (msg, model) {
+		switch (msg.$) {
+			case 0:
+				return A2(
+					elm$core$Tuple$mapSecond,
 					A2(
 						elm$core$Basics$composeR,
-						visotype$elm_eval$Eval$call(visotype$elm_eval$Eval$coreLib),
+						elm$core$Dict$toList,
+						A2(
+							elm$core$Basics$composeR,
+							elm$json$Json$Encode$object,
+							A2(
+								elm$core$Basics$composeR,
+								elm$core$Result$Ok,
+								A2(elm$core$Basics$composeR, author$project$Main$encodeResult, author$project$Main$outgoing)))),
+					function (d) {
+						return _Utils_Tuple2(d, d);
+					}(model));
+			case 1:
+				var object = msg.a;
+				return A2(
+					elm$core$Tuple$mapSecond,
+					A2(
+						elm$core$Basics$composeR,
+						author$project$Main$tryDictGet(
+							A2(author$project$Main$tryStringField, 'key', object)),
 						A2(elm$core$Basics$composeR, author$project$Main$encodeResult, author$project$Main$outgoing)),
-					function (r) {
-						return _Utils_Tuple2(r, r);
-					}(
-						visotype$elm_eval$Eval$parse(object)));
-			})
+					function (d) {
+						return _Utils_Tuple2(d, d);
+					}(model));
+			default:
+				var object = msg.a;
+				return A2(
+					elm$core$Tuple$mapSecond,
+					A2(
+						elm$core$Basics$composeR,
+						elm$core$Result$andThen(
+							author$project$Main$tryDictGet(
+								A2(author$project$Main$tryStringField, 'key', object))),
+						A2(elm$core$Basics$composeR, author$project$Main$encodeResult, author$project$Main$outgoing)),
+					A2(
+						elm$core$Tuple$mapFirst,
+						elm$core$Result$withDefault(model),
+						function (d) {
+							return _Utils_Tuple2(d, d);
+						}(
+							A2(author$project$Main$updateModel, object, model))));
+		}
 	});
-_Platform_export({'Main':{'init':author$project$Main$main(
-	elm$json$Json$Decode$succeed(0))(0)}});}(this));
+var author$project$Main$updateKey = _Platform_incomingPort('updateKey', elm$json$Json$Decode$value);
+var elm$core$Platform$worker = _Platform_worker;
+var elm$core$Platform$Cmd$batch = _Platform_batch;
+var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
+var elm$core$Platform$Sub$batch = _Platform_batch;
+var author$project$Main$main = elm$core$Platform$worker(
+	{
+		i: function (object) {
+			return _Utils_Tuple2(
+				author$project$Main$tryDict(object),
+				elm$core$Platform$Cmd$none);
+		},
+		j: function (_n0) {
+			return elm$core$Platform$Sub$batch(
+				_List_fromArray(
+					[
+						author$project$Main$getModel(author$project$Main$GetModel),
+						author$project$Main$getKey(author$project$Main$GetKey),
+						author$project$Main$updateKey(author$project$Main$UpdateKey)
+					]));
+		},
+		k: author$project$Main$update
+	});
+_Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));
