@@ -252,7 +252,7 @@ function _Utils_cmp(x, y, ord)
 	//*/
 
 	/**/
-	if (!x.$)
+	if (typeof x.$ === 'undefined')
 	//*/
 	/**_UNUSED/
 	if (x.$[0] === '#')
@@ -633,6 +633,16 @@ function _Debug_toAnsiString(ansi, value)
 		return _Debug_ctorColor(ansi, tag) + output;
 	}
 
+	if (typeof DataView === 'function' && value instanceof DataView)
+	{
+		return _Debug_stringColor(ansi, '<' + value.byteLength + ' bytes>');
+	}
+
+	if (typeof File === 'function' && value instanceof File)
+	{
+		return _Debug_internalColor(ansi, '<' + value.name + '>');
+	}
+
 	if (typeof value === 'object')
 	{
 		var output = [];
@@ -701,6 +711,10 @@ function _Debug_internalColor(ansi, string)
 	return ansi ? '\x1b[94m' + string + '\x1b[0m' : string;
 }
 
+function _Debug_toHexDigit(n)
+{
+	return String.fromCharCode(n < 10 ? 48 + n : 55 + n);
+}
 
 
 // CRASH
@@ -770,11 +784,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.g.f === region.i.f)
+	if (region.e.d === region.f.d)
 	{
-		return 'on line ' + region.g.f;
+		return 'on line ' + region.e.d;
 	}
-	return 'on lines ' + region.g.f + ' through ' + region.i.f;
+	return 'on lines ' + region.e.d + ' through ' + region.f.d;
 }
 
 
@@ -859,9 +873,7 @@ function _Char_fromCode(code)
 			? String.fromCharCode(code)
 			:
 		(code -= 0x10000,
-			String.fromCharCode(Math.floor(code / 0x400) + 0xD800)
-			+
-			String.fromCharCode(code % 0x400 + 0xDC00)
+			String.fromCharCode(Math.floor(code / 0x400) + 0xD800, code % 0x400 + 0xDC00)
 		)
 	);
 }
@@ -1226,21 +1238,56 @@ function _Json_fail(msg)
 	};
 }
 
-var _Json_decodeInt = { $: 2 };
-var _Json_decodeBool = { $: 3 };
-var _Json_decodeFloat = { $: 4 };
-var _Json_decodeValue = { $: 5 };
-var _Json_decodeString = { $: 6 };
+function _Json_decodePrim(decoder)
+{
+	return { $: 2, b: decoder };
+}
 
-function _Json_decodeList(decoder) { return { $: 7, b: decoder }; }
-function _Json_decodeArray(decoder) { return { $: 8, b: decoder }; }
+var _Json_decodeInt = _Json_decodePrim(function(value) {
+	return (typeof value !== 'number')
+		? _Json_expecting('an INT', value)
+		:
+	(-2147483647 < value && value < 2147483647 && (value | 0) === value)
+		? elm$core$Result$Ok(value)
+		:
+	(isFinite(value) && !(value % 1))
+		? elm$core$Result$Ok(value)
+		: _Json_expecting('an INT', value);
+});
 
-function _Json_decodeNull(value) { return { $: 9, c: value }; }
+var _Json_decodeBool = _Json_decodePrim(function(value) {
+	return (typeof value === 'boolean')
+		? elm$core$Result$Ok(value)
+		: _Json_expecting('a BOOL', value);
+});
+
+var _Json_decodeFloat = _Json_decodePrim(function(value) {
+	return (typeof value === 'number')
+		? elm$core$Result$Ok(value)
+		: _Json_expecting('a FLOAT', value);
+});
+
+var _Json_decodeValue = _Json_decodePrim(function(value) {
+	return elm$core$Result$Ok(_Json_wrap(value));
+});
+
+var _Json_decodeString = _Json_decodePrim(function(value) {
+	return (typeof value === 'string')
+		? elm$core$Result$Ok(value)
+		: (value instanceof String)
+			? elm$core$Result$Ok(value + '')
+			: _Json_expecting('a STRING', value);
+});
+
+function _Json_decodeList(decoder) { return { $: 3, b: decoder }; }
+function _Json_decodeArray(decoder) { return { $: 4, b: decoder }; }
+
+function _Json_decodeNull(value) { return { $: 5, c: value }; }
 
 var _Json_decodeField = F2(function(field, decoder)
 {
 	return {
-		$: 10,
+		$: 6,
 		d: field,
 		b: decoder
 	};
@@ -1249,7 +1296,7 @@ var _Json_decodeField = F2(function(field, decoder)
 var _Json_decodeIndex = F2(function(index, decoder)
 {
 	return {
-		$: 11,
+		$: 7,
 		e: index,
 		b: decoder
 	};
@@ -1258,7 +1305,7 @@ var _Json_decodeIndex = F2(function(index, decoder)
 function _Json_decodeKeyValuePairs(decoder)
 {
 	return {
-		$: 12,
+		$: 8,
 		b: decoder
 	};
 }
@@ -1266,7 +1313,7 @@ function _Json_decodeKeyValuePairs(decoder)
 function _Json_mapMany(f, decoders)
 {
 	return {
-		$: 13,
+		$: 9,
 		f: f,
 		g: decoders
 	};
@@ -1275,7 +1322,7 @@ function _Json_mapMany(f, decoders)
 var _Json_andThen = F2(function(callback, decoder)
 {
 	return {
-		$: 14,
+		$: 10,
 		b: decoder,
 		h: callback
 	};
@@ -1284,7 +1331,7 @@ var _Json_andThen = F2(function(callback, decoder)
 function _Json_oneOf(decoders)
 {
 	return {
-		$: 15,
+		$: 11,
 		g: decoders
 	};
 }
@@ -1357,61 +1404,29 @@ function _Json_runHelp(decoder, value)
 {
 	switch (decoder.$)
 	{
-		case 3:
-			return (typeof value === 'boolean')
-				? elm$core$Result$Ok(value)
-				: _Json_expecting('a BOOL', value);
-
 		case 2:
-			if (typeof value !== 'number') {
-				return _Json_expecting('an INT', value);
-			}
+			return decoder.b(value);
 
-			if (-2147483647 < value && value < 2147483647 && (value | 0) === value) {
-				return elm$core$Result$Ok(value);
-			}
-
-			if (isFinite(value) && !(value % 1)) {
-				return elm$core$Result$Ok(value);
-			}
-
-			return _Json_expecting('an INT', value);
-
-		case 4:
-			return (typeof value === 'number')
-				? elm$core$Result$Ok(value)
-				: _Json_expecting('a FLOAT', value);
-
-		case 6:
-			return (typeof value === 'string')
-				? elm$core$Result$Ok(value)
-				: (value instanceof String)
-					? elm$core$Result$Ok(value + '')
-					: _Json_expecting('a STRING', value);
-
-		case 9:
+		case 5:
 			return (value === null)
 				? elm$core$Result$Ok(decoder.c)
 				: _Json_expecting('null', value);
 
-		case 5:
-			return elm$core$Result$Ok(_Json_wrap(value));
-
-		case 7:
-			if (!Array.isArray(value))
+		case 3:
+			if (!_Json_isArray(value))
 			{
 				return _Json_expecting('a LIST', value);
 			}
 			return _Json_runArrayDecoder(decoder.b, value, _List_fromArray);
 
-		case 8:
-			if (!Array.isArray(value))
+		case 4:
+			if (!_Json_isArray(value))
 			{
 				return _Json_expecting('an ARRAY', value);
 			}
 			return _Json_runArrayDecoder(decoder.b, value, _Json_toElmArray);
 
-		case 10:
+		case 6:
 			var field = decoder.d;
 			if (typeof value !== 'object' || value === null || !(field in value))
 			{
@@ -1420,9 +1435,9 @@ function _Json_runHelp(decoder, value)
 			var result = _Json_runHelp(decoder.b, value[field]);
 			return (elm$core$Result$isOk(result)) ? result : elm$core$Result$Err(A2(elm$json$Json$Decode$Field, field, result.a));
 
-		case 11:
+		case 7:
 			var index = decoder.e;
-			if (!Array.isArray(value))
+			if (!_Json_isArray(value))
 			{
 				return _Json_expecting('an ARRAY', value);
 			}
@@ -1433,8 +1448,8 @@ function _Json_runHelp(decoder, value)
 			var result = _Json_runHelp(decoder.b, value[index]);
 			return (elm$core$Result$isOk(result)) ? result : elm$core$Result$Err(A2(elm$json$Json$Decode$Index, index, result.a));
 
-		case 12:
-			if (typeof value !== 'object' || value === null || Array.isArray(value))
+		case 8:
+			if (typeof value !== 'object' || value === null || _Json_isArray(value))
 			{
 				return _Json_expecting('an OBJECT', value);
 			}
@@ -1455,7 +1470,7 @@ function _Json_runHelp(decoder, value)
 			}
 			return elm$core$Result$Ok(elm$core$List$reverse(keyValuePairs));
 
-		case 13:
+		case 9:
 			var answer = decoder.f;
 			var decoders = decoder.g;
 			for (var i = 0; i < decoders.length; i++)
@@ -1469,13 +1484,13 @@ function _Json_runHelp(decoder, value)
 			}
 			return elm$core$Result$Ok(answer);
 
-		case 14:
+		case 10:
 			var result = _Json_runHelp(decoder.b, value);
 			return (!elm$core$Result$isOk(result))
 				? result
 				: _Json_runHelp(decoder.h(result.a), value);
 
-		case 15:
+		case 11:
 			var errors = _List_Nil;
 			for (var temp = decoder.g; temp.b; temp = temp.b) // WHILE_CONS
 			{
@@ -1512,6 +1527,11 @@ function _Json_runArrayDecoder(decoder, value, toElmValue)
 	return elm$core$Result$Ok(toElmValue(array));
 }
 
+function _Json_isArray(value)
+{
+	return Array.isArray(value) || (typeof FileList === 'function' && value instanceof FileList);
+}
+
 function _Json_toElmArray(array)
 {
 	return A2(elm$core$Array$initialize, array.length, function(i) { return array[i]; });
@@ -1543,34 +1563,30 @@ function _Json_equality(x, y)
 		case 1:
 			return x.a === y.a;
 
-		case 3:
 		case 2:
-		case 4:
-		case 6:
-		case 5:
-			return true;
+			return x.b === y.b;
 
-		case 9:
+		case 5:
 			return x.c === y.c;
 
-		case 7:
+		case 3:
+		case 4:
 		case 8:
-		case 12:
 			return _Json_equality(x.b, y.b);
 
-		case 10:
+		case 6:
 			return x.d === y.d && _Json_equality(x.b, y.b);
 
-		case 11:
+		case 7:
 			return x.e === y.e && _Json_equality(x.b, y.b);
 
-		case 13:
+		case 9:
 			return x.f === y.f && _Json_listEquality(x.g, y.g);
 
-		case 14:
+		case 10:
 			return x.h === y.h && _Json_equality(x.b, y.b);
 
-		case 15:
+		case 11:
 			return _Json_listEquality(x.g, y.g);
 	}
 }
@@ -1841,9 +1857,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.o,
-		impl.q,
-		impl.p,
+		impl.i,
+		impl.k,
+		impl.j,
 		function() { return function() {} }
 	);
 });
@@ -2295,25 +2311,49 @@ function _Platform_mergeExportsDebug(moduleName, obj, exports)
 			: (obj[name] = exports[name]);
 	}
 }
+
+
+
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
+};
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
+var author$project$Main$Receive = elm$core$Basics$identity;
+var elm$core$Basics$False = 1;
+var elm$core$Basics$True = 0;
 var elm$core$Basics$apR = F2(
 	function (x, f) {
 		return f(x);
-	});
-var elm$core$Basics$composeR = F3(
-	function (f, g, x) {
-		return g(
-			f(x));
-	});
-var elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
-var elm$core$Dict$empty = elm$core$Dict$RBEmpty_elm_builtin;
-var elm$core$Result$withDefault = F2(
-	function (def, result) {
-		if (!result.$) {
-			var a = result.a;
-			return a;
-		} else {
-			return def;
-		}
 	});
 var elm$core$Array$branchFactor = 32;
 var elm$core$Array$Array_elm_builtin = F4(
@@ -2520,7 +2560,6 @@ var elm$core$Array$builderToArray = F2(
 				builder.b);
 		}
 	});
-var elm$core$Basics$False = 1;
 var elm$core$Basics$idiv = _Basics_idiv;
 var elm$core$Basics$lt = _Utils_lt;
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
@@ -2573,7 +2612,6 @@ var elm$core$Result$Err = function (a) {
 var elm$core$Result$Ok = function (a) {
 	return {$: 0, a: a};
 };
-var elm$core$Basics$True = 0;
 var elm$core$Result$isOk = function (result) {
 	if (!result.$) {
 		return true;
@@ -2786,13 +2824,2671 @@ var elm$json$Json$Decode$errorToStringHelp = F2(
 			}
 		}
 	});
+var elm$json$Json$Encode$bool = _Json_wrap;
+var elm$json$Json$Encode$null = _Json_encodeNull;
+var elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			elm$core$List$foldl,
+			F2(
+				function (_n0, obj) {
+					var k = _n0.a;
+					var v = _n0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(0),
+			pairs));
+};
+var elm$json$Json$Encode$string = _Json_wrap;
+var author$project$Main$encodeResult = function (result) {
+	if (!result.$) {
+		var value = result.a;
+		return elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'resolve',
+					elm$json$Json$Encode$bool(true)),
+					_Utils_Tuple2('value', value),
+					_Utils_Tuple2('error', elm$json$Json$Encode$null)
+				]));
+	} else {
+		var message = result.a;
+		return elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'resolve',
+					elm$json$Json$Encode$bool(false)),
+					_Utils_Tuple2('value', elm$json$Json$Encode$null),
+					_Utils_Tuple2(
+					'error',
+					elm$json$Json$Encode$string(message))
+				]));
+	}
+};
+var elm$json$Json$Decode$value = _Json_decodeValue;
+var author$project$Main$incoming = _Platform_incomingPort('incoming', elm$json$Json$Decode$value);
+var elm$core$Basics$identity = function (x) {
+	return x;
+};
+var author$project$Main$outgoing = _Platform_outgoingPort('outgoing', elm$core$Basics$identity);
+var elm$core$Basics$composeR = F3(
+	function (f, g, x) {
+		return g(
+			f(x));
+	});
+var elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var elm$core$Platform$worker = _Platform_worker;
+var elm$core$Platform$Cmd$batch = _Platform_batch;
+var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
+var elm$core$Platform$Sub$batch = _Platform_batch;
+var elm$core$Tuple$mapBoth = F3(
+	function (funcA, funcB, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return _Utils_Tuple2(
+			funcA(x),
+			funcB(y));
+	});
+var elm$json$Json$Decode$succeed = _Json_succeed;
+var elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (!result.$) {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return elm$core$Result$Err(msg);
+		}
+	});
+var elm$core$Result$fromMaybe = F2(
+	function (err, maybe) {
+		if (!maybe.$) {
+			var v = maybe.a;
+			return elm$core$Result$Ok(v);
+		} else {
+			return elm$core$Result$Err(err);
+		}
+	});
+var visotype$elm_eval$Eval$Try$List$empty = function (ls) {
+	if (!ls.b) {
+		return elm$core$Maybe$Just(0);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var visotype$elm_eval$Eval$Try$List$singleton = function (ls) {
+	if (ls.b && (!ls.b.b)) {
+		var first = ls.a;
+		return elm$core$Maybe$Just(first);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var visotype$elm_eval$Eval$Try$List$tuple2 = function (ls) {
+	var _n0 = _Utils_Tuple2(
+		ls,
+		A2(elm$core$List$drop, 1, ls));
+	if ((_n0.a.b && _n0.b.b) && (!_n0.b.b.b)) {
+		var _n1 = _n0.a;
+		var first = _n1.a;
+		var rest = _n1.b;
+		var _n2 = _n0.b;
+		var second = _n2.a;
+		return elm$core$Maybe$Just(
+			_Utils_Tuple2(first, second));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var visotype$elm_eval$Eval$Try$List$tuple3 = function (ls) {
+	var _n0 = _Utils_Tuple3(
+		ls,
+		A2(elm$core$List$drop, 1, ls),
+		A2(elm$core$List$drop, 2, ls));
+	if (((_n0.a.b && _n0.b.b) && _n0.c.b) && (!_n0.c.b.b)) {
+		var _n1 = _n0.a;
+		var first = _n1.a;
+		var slice1 = _n1.b;
+		var _n2 = _n0.b;
+		var second = _n2.a;
+		var slice2 = _n2.b;
+		var _n3 = _n0.c;
+		var third = _n3.a;
+		return elm$core$Maybe$Just(
+			_Utils_Tuple3(first, second, third));
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var visotype$elm_eval$Eval$Call$fromLib = F2(
+	function (lib, call) {
+		var _n0 = lib(call.h);
+		if (!_n0.$) {
+			var f = _n0.a;
+			switch (f.$) {
+				case 0:
+					var f0 = f.a;
+					return A2(
+						elm$core$Result$andThen,
+						f0,
+						A2(
+							elm$core$Result$fromMaybe,
+							'The `' + (call.h + ('` function expects no arguments, but it got ' + (elm$core$String$fromInt(
+								elm$core$List$length(call.g)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$empty(call.g)));
+				case 1:
+					var f1 = f.a;
+					return A2(
+						elm$core$Result$andThen,
+						f1,
+						A2(
+							elm$core$Result$fromMaybe,
+							'The `' + (call.h + ('` function expects 1 argument, but it got ' + (elm$core$String$fromInt(
+								elm$core$List$length(call.g)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$singleton(call.g)));
+				case 2:
+					var f2 = f.a;
+					return A2(
+						elm$core$Result$andThen,
+						f2,
+						A2(
+							elm$core$Result$fromMaybe,
+							'The `' + (call.h + ('` function expects 2 arguments, but it got ' + (elm$core$String$fromInt(
+								elm$core$List$length(call.g)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$tuple2(call.g)));
+				default:
+					var f3 = f.a;
+					return A2(
+						elm$core$Result$andThen,
+						f3,
+						A2(
+							elm$core$Result$fromMaybe,
+							'The `' + (call.h + ('` function expects 3 arguments, but it got ' + (elm$core$String$fromInt(
+								elm$core$List$length(call.g)) + ' instead.'))),
+							visotype$elm_eval$Eval$Try$List$tuple3(call.g)));
+			}
+		} else {
+			var e = _n0.a;
+			return elm$core$Result$Err(e);
+		}
+	});
+var visotype$elm_eval$Eval$call = visotype$elm_eval$Eval$Call$fromLib;
+var elm$core$Elm$JsArray$appendN = _JsArray_appendN;
+var elm$core$Elm$JsArray$slice = _JsArray_slice;
+var elm$core$Array$appendHelpBuilder = F2(
+	function (tail, builder) {
+		var tailLen = elm$core$Elm$JsArray$length(tail);
+		var notAppended = (elm$core$Array$branchFactor - elm$core$Elm$JsArray$length(builder.b)) - tailLen;
+		var appended = A3(elm$core$Elm$JsArray$appendN, elm$core$Array$branchFactor, builder.b, tail);
+		return (notAppended < 0) ? {
+			c: A2(
+				elm$core$List$cons,
+				elm$core$Array$Leaf(appended),
+				builder.c),
+			a: builder.a + 1,
+			b: A3(elm$core$Elm$JsArray$slice, notAppended, tailLen, tail)
+		} : ((!notAppended) ? {
+			c: A2(
+				elm$core$List$cons,
+				elm$core$Array$Leaf(appended),
+				builder.c),
+			a: builder.a + 1,
+			b: elm$core$Elm$JsArray$empty
+		} : {c: builder.c, a: builder.a, b: appended});
+	});
+var elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
+var elm$core$Array$bitMask = 4294967295 >>> (32 - elm$core$Array$shiftStep);
+var elm$core$Basics$ge = _Utils_ge;
+var elm$core$Bitwise$and = _Bitwise_and;
+var elm$core$Elm$JsArray$push = _JsArray_push;
+var elm$core$Elm$JsArray$singleton = _JsArray_singleton;
+var elm$core$Elm$JsArray$unsafeGet = _JsArray_unsafeGet;
+var elm$core$Elm$JsArray$unsafeSet = _JsArray_unsafeSet;
+var elm$core$Array$insertTailInTree = F4(
+	function (shift, index, tail, tree) {
+		var pos = elm$core$Array$bitMask & (index >>> shift);
+		if (_Utils_cmp(
+			pos,
+			elm$core$Elm$JsArray$length(tree)) > -1) {
+			if (shift === 5) {
+				return A2(
+					elm$core$Elm$JsArray$push,
+					elm$core$Array$Leaf(tail),
+					tree);
+			} else {
+				var newSub = elm$core$Array$SubTree(
+					A4(elm$core$Array$insertTailInTree, shift - elm$core$Array$shiftStep, index, tail, elm$core$Elm$JsArray$empty));
+				return A2(elm$core$Elm$JsArray$push, newSub, tree);
+			}
+		} else {
+			var value = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+			if (!value.$) {
+				var subTree = value.a;
+				var newSub = elm$core$Array$SubTree(
+					A4(elm$core$Array$insertTailInTree, shift - elm$core$Array$shiftStep, index, tail, subTree));
+				return A3(elm$core$Elm$JsArray$unsafeSet, pos, newSub, tree);
+			} else {
+				var newSub = elm$core$Array$SubTree(
+					A4(
+						elm$core$Array$insertTailInTree,
+						shift - elm$core$Array$shiftStep,
+						index,
+						tail,
+						elm$core$Elm$JsArray$singleton(value)));
+				return A3(elm$core$Elm$JsArray$unsafeSet, pos, newSub, tree);
+			}
+		}
+	});
+var elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
+var elm$core$Array$unsafeReplaceTail = F2(
+	function (newTail, _n0) {
+		var len = _n0.a;
+		var startShift = _n0.b;
+		var tree = _n0.c;
+		var tail = _n0.d;
+		var originalTailLen = elm$core$Elm$JsArray$length(tail);
+		var newTailLen = elm$core$Elm$JsArray$length(newTail);
+		var newArrayLen = len + (newTailLen - originalTailLen);
+		if (_Utils_eq(newTailLen, elm$core$Array$branchFactor)) {
+			var overflow = _Utils_cmp(newArrayLen >>> elm$core$Array$shiftStep, 1 << startShift) > 0;
+			if (overflow) {
+				var newShift = startShift + elm$core$Array$shiftStep;
+				var newTree = A4(
+					elm$core$Array$insertTailInTree,
+					newShift,
+					len,
+					newTail,
+					elm$core$Elm$JsArray$singleton(
+						elm$core$Array$SubTree(tree)));
+				return A4(elm$core$Array$Array_elm_builtin, newArrayLen, newShift, newTree, elm$core$Elm$JsArray$empty);
+			} else {
+				return A4(
+					elm$core$Array$Array_elm_builtin,
+					newArrayLen,
+					startShift,
+					A4(elm$core$Array$insertTailInTree, startShift, len, newTail, tree),
+					elm$core$Elm$JsArray$empty);
+			}
+		} else {
+			return A4(elm$core$Array$Array_elm_builtin, newArrayLen, startShift, tree, newTail);
+		}
+	});
+var elm$core$Array$appendHelpTree = F2(
+	function (toAppend, array) {
+		var len = array.a;
+		var tree = array.c;
+		var tail = array.d;
+		var itemsToAppend = elm$core$Elm$JsArray$length(toAppend);
+		var notAppended = (elm$core$Array$branchFactor - elm$core$Elm$JsArray$length(tail)) - itemsToAppend;
+		var appended = A3(elm$core$Elm$JsArray$appendN, elm$core$Array$branchFactor, tail, toAppend);
+		var newArray = A2(elm$core$Array$unsafeReplaceTail, appended, array);
+		if (notAppended < 0) {
+			var nextTail = A3(elm$core$Elm$JsArray$slice, notAppended, itemsToAppend, toAppend);
+			return A2(elm$core$Array$unsafeReplaceTail, nextTail, newArray);
+		} else {
+			return newArray;
+		}
+	});
+var elm$core$Elm$JsArray$foldl = _JsArray_foldl;
+var elm$core$Array$builderFromArray = function (_n0) {
+	var len = _n0.a;
+	var tree = _n0.c;
+	var tail = _n0.d;
+	var helper = F2(
+		function (node, acc) {
+			if (!node.$) {
+				var subTree = node.a;
+				return A3(elm$core$Elm$JsArray$foldl, helper, acc, subTree);
+			} else {
+				return A2(elm$core$List$cons, node, acc);
+			}
+		});
+	return {
+		c: A3(elm$core$Elm$JsArray$foldl, helper, _List_Nil, tree),
+		a: (len / elm$core$Array$branchFactor) | 0,
+		b: tail
+	};
+};
+var elm$core$Array$append = F2(
+	function (a, _n0) {
+		var aTail = a.d;
+		var bLen = _n0.a;
+		var bTree = _n0.c;
+		var bTail = _n0.d;
+		if (_Utils_cmp(bLen, elm$core$Array$branchFactor * 4) < 1) {
+			var foldHelper = F2(
+				function (node, array) {
+					if (!node.$) {
+						var tree = node.a;
+						return A3(elm$core$Elm$JsArray$foldl, foldHelper, array, tree);
+					} else {
+						var leaf = node.a;
+						return A2(elm$core$Array$appendHelpTree, leaf, array);
+					}
+				});
+			return A2(
+				elm$core$Array$appendHelpTree,
+				bTail,
+				A3(elm$core$Elm$JsArray$foldl, foldHelper, a, bTree));
+		} else {
+			var foldHelper = F2(
+				function (node, builder) {
+					if (!node.$) {
+						var tree = node.a;
+						return A3(elm$core$Elm$JsArray$foldl, foldHelper, builder, tree);
+					} else {
+						var leaf = node.a;
+						return A2(elm$core$Array$appendHelpBuilder, leaf, builder);
+					}
+				});
+			return A2(
+				elm$core$Array$builderToArray,
+				true,
+				A2(
+					elm$core$Array$appendHelpBuilder,
+					bTail,
+					A3(
+						elm$core$Elm$JsArray$foldl,
+						foldHelper,
+						elm$core$Array$builderFromArray(a),
+						bTree)));
+		}
+	});
+var elm$core$Array$fromListHelp = F3(
+	function (list, nodeList, nodeListSize) {
+		fromListHelp:
+		while (true) {
+			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
+			var jsArray = _n0.a;
+			var remainingItems = _n0.b;
+			if (_Utils_cmp(
+				elm$core$Elm$JsArray$length(jsArray),
+				elm$core$Array$branchFactor) < 0) {
+				return A2(
+					elm$core$Array$builderToArray,
+					true,
+					{c: nodeList, a: nodeListSize, b: jsArray});
+			} else {
+				var $temp$list = remainingItems,
+					$temp$nodeList = A2(
+					elm$core$List$cons,
+					elm$core$Array$Leaf(jsArray),
+					nodeList),
+					$temp$nodeListSize = nodeListSize + 1;
+				list = $temp$list;
+				nodeList = $temp$nodeList;
+				nodeListSize = $temp$nodeListSize;
+				continue fromListHelp;
+			}
+		}
+	});
+var elm$core$Array$fromList = function (list) {
+	if (!list.b) {
+		return elm$core$Array$empty;
+	} else {
+		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
+	}
+};
+var elm$core$Array$getHelp = F3(
+	function (shift, index, tree) {
+		getHelp:
+		while (true) {
+			var pos = elm$core$Array$bitMask & (index >>> shift);
+			var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+			if (!_n0.$) {
+				var subTree = _n0.a;
+				var $temp$shift = shift - elm$core$Array$shiftStep,
+					$temp$index = index,
+					$temp$tree = subTree;
+				shift = $temp$shift;
+				index = $temp$index;
+				tree = $temp$tree;
+				continue getHelp;
+			} else {
+				var values = _n0.a;
+				return A2(elm$core$Elm$JsArray$unsafeGet, elm$core$Array$bitMask & index, values);
+			}
+		}
+	});
+var elm$core$Array$tailIndex = function (len) {
+	return (len >>> 5) << 5;
+};
+var elm$core$Array$get = F2(
+	function (index, _n0) {
+		var len = _n0.a;
+		var startShift = _n0.b;
+		var tree = _n0.c;
+		var tail = _n0.d;
+		return ((index < 0) || (_Utils_cmp(index, len) > -1)) ? elm$core$Maybe$Nothing : ((_Utils_cmp(
+			index,
+			elm$core$Array$tailIndex(len)) > -1) ? elm$core$Maybe$Just(
+			A2(elm$core$Elm$JsArray$unsafeGet, elm$core$Array$bitMask & index, tail)) : elm$core$Maybe$Just(
+			A3(elm$core$Array$getHelp, startShift, index, tree)));
+	});
+var elm$core$Array$isEmpty = function (_n0) {
+	var len = _n0.a;
+	return !len;
+};
+var elm$core$Array$length = function (_n0) {
+	var len = _n0.a;
+	return len;
+};
+var elm$core$Array$push = F2(
+	function (a, array) {
+		var tail = array.d;
+		return A2(
+			elm$core$Array$unsafeReplaceTail,
+			A2(elm$core$Elm$JsArray$push, a, tail),
+			array);
+	});
+var elm$core$Array$repeat = F2(
+	function (n, e) {
+		return A2(
+			elm$core$Array$initialize,
+			n,
+			function (_n0) {
+				return e;
+			});
+	});
+var elm$core$Array$setHelp = F4(
+	function (shift, index, value, tree) {
+		var pos = elm$core$Array$bitMask & (index >>> shift);
+		var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+		if (!_n0.$) {
+			var subTree = _n0.a;
+			var newSub = A4(elm$core$Array$setHelp, shift - elm$core$Array$shiftStep, index, value, subTree);
+			return A3(
+				elm$core$Elm$JsArray$unsafeSet,
+				pos,
+				elm$core$Array$SubTree(newSub),
+				tree);
+		} else {
+			var values = _n0.a;
+			var newLeaf = A3(elm$core$Elm$JsArray$unsafeSet, elm$core$Array$bitMask & index, value, values);
+			return A3(
+				elm$core$Elm$JsArray$unsafeSet,
+				pos,
+				elm$core$Array$Leaf(newLeaf),
+				tree);
+		}
+	});
+var elm$core$Array$set = F3(
+	function (index, value, array) {
+		var len = array.a;
+		var startShift = array.b;
+		var tree = array.c;
+		var tail = array.d;
+		return ((index < 0) || (_Utils_cmp(index, len) > -1)) ? array : ((_Utils_cmp(
+			index,
+			elm$core$Array$tailIndex(len)) > -1) ? A4(
+			elm$core$Array$Array_elm_builtin,
+			len,
+			startShift,
+			tree,
+			A3(elm$core$Elm$JsArray$unsafeSet, elm$core$Array$bitMask & index, value, tail)) : A4(
+			elm$core$Array$Array_elm_builtin,
+			len,
+			startShift,
+			A4(elm$core$Array$setHelp, startShift, index, value, tree),
+			tail));
+	});
+var elm$core$Array$sliceLeft = F2(
+	function (from, array) {
+		var len = array.a;
+		var tree = array.c;
+		var tail = array.d;
+		if (!from) {
+			return array;
+		} else {
+			if (_Utils_cmp(
+				from,
+				elm$core$Array$tailIndex(len)) > -1) {
+				return A4(
+					elm$core$Array$Array_elm_builtin,
+					len - from,
+					elm$core$Array$shiftStep,
+					elm$core$Elm$JsArray$empty,
+					A3(
+						elm$core$Elm$JsArray$slice,
+						from - elm$core$Array$tailIndex(len),
+						elm$core$Elm$JsArray$length(tail),
+						tail));
+			} else {
+				var skipNodes = (from / elm$core$Array$branchFactor) | 0;
+				var helper = F2(
+					function (node, acc) {
+						if (!node.$) {
+							var subTree = node.a;
+							return A3(elm$core$Elm$JsArray$foldr, helper, acc, subTree);
+						} else {
+							var leaf = node.a;
+							return A2(elm$core$List$cons, leaf, acc);
+						}
+					});
+				var leafNodes = A3(
+					elm$core$Elm$JsArray$foldr,
+					helper,
+					_List_fromArray(
+						[tail]),
+					tree);
+				var nodesToInsert = A2(elm$core$List$drop, skipNodes, leafNodes);
+				if (!nodesToInsert.b) {
+					return elm$core$Array$empty;
+				} else {
+					var head = nodesToInsert.a;
+					var rest = nodesToInsert.b;
+					var firstSlice = from - (skipNodes * elm$core$Array$branchFactor);
+					var initialBuilder = {
+						c: _List_Nil,
+						a: 0,
+						b: A3(
+							elm$core$Elm$JsArray$slice,
+							firstSlice,
+							elm$core$Elm$JsArray$length(head),
+							head)
+					};
+					return A2(
+						elm$core$Array$builderToArray,
+						true,
+						A3(elm$core$List$foldl, elm$core$Array$appendHelpBuilder, initialBuilder, rest));
+				}
+			}
+		}
+	});
+var elm$core$Array$fetchNewTail = F4(
+	function (shift, end, treeEnd, tree) {
+		fetchNewTail:
+		while (true) {
+			var pos = elm$core$Array$bitMask & (treeEnd >>> shift);
+			var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+			if (!_n0.$) {
+				var sub = _n0.a;
+				var $temp$shift = shift - elm$core$Array$shiftStep,
+					$temp$end = end,
+					$temp$treeEnd = treeEnd,
+					$temp$tree = sub;
+				shift = $temp$shift;
+				end = $temp$end;
+				treeEnd = $temp$treeEnd;
+				tree = $temp$tree;
+				continue fetchNewTail;
+			} else {
+				var values = _n0.a;
+				return A3(elm$core$Elm$JsArray$slice, 0, elm$core$Array$bitMask & end, values);
+			}
+		}
+	});
+var elm$core$Array$hoistTree = F3(
+	function (oldShift, newShift, tree) {
+		hoistTree:
+		while (true) {
+			if ((_Utils_cmp(oldShift, newShift) < 1) || (!elm$core$Elm$JsArray$length(tree))) {
+				return tree;
+			} else {
+				var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, 0, tree);
+				if (!_n0.$) {
+					var sub = _n0.a;
+					var $temp$oldShift = oldShift - elm$core$Array$shiftStep,
+						$temp$newShift = newShift,
+						$temp$tree = sub;
+					oldShift = $temp$oldShift;
+					newShift = $temp$newShift;
+					tree = $temp$tree;
+					continue hoistTree;
+				} else {
+					return tree;
+				}
+			}
+		}
+	});
+var elm$core$Array$sliceTree = F3(
+	function (shift, endIdx, tree) {
+		var lastPos = elm$core$Array$bitMask & (endIdx >>> shift);
+		var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, lastPos, tree);
+		if (!_n0.$) {
+			var sub = _n0.a;
+			var newSub = A3(elm$core$Array$sliceTree, shift - elm$core$Array$shiftStep, endIdx, sub);
+			return (!elm$core$Elm$JsArray$length(newSub)) ? A3(elm$core$Elm$JsArray$slice, 0, lastPos, tree) : A3(
+				elm$core$Elm$JsArray$unsafeSet,
+				lastPos,
+				elm$core$Array$SubTree(newSub),
+				A3(elm$core$Elm$JsArray$slice, 0, lastPos + 1, tree));
+		} else {
+			return A3(elm$core$Elm$JsArray$slice, 0, lastPos, tree);
+		}
+	});
+var elm$core$Array$sliceRight = F2(
+	function (end, array) {
+		var len = array.a;
+		var startShift = array.b;
+		var tree = array.c;
+		var tail = array.d;
+		if (_Utils_eq(end, len)) {
+			return array;
+		} else {
+			if (_Utils_cmp(
+				end,
+				elm$core$Array$tailIndex(len)) > -1) {
+				return A4(
+					elm$core$Array$Array_elm_builtin,
+					end,
+					startShift,
+					tree,
+					A3(elm$core$Elm$JsArray$slice, 0, elm$core$Array$bitMask & end, tail));
+			} else {
+				var endIdx = elm$core$Array$tailIndex(end);
+				var depth = elm$core$Basics$floor(
+					A2(
+						elm$core$Basics$logBase,
+						elm$core$Array$branchFactor,
+						A2(elm$core$Basics$max, 1, endIdx - 1)));
+				var newShift = A2(elm$core$Basics$max, 5, depth * elm$core$Array$shiftStep);
+				return A4(
+					elm$core$Array$Array_elm_builtin,
+					end,
+					newShift,
+					A3(
+						elm$core$Array$hoistTree,
+						startShift,
+						newShift,
+						A3(elm$core$Array$sliceTree, startShift, endIdx, tree)),
+					A4(elm$core$Array$fetchNewTail, startShift, end, endIdx, tree));
+			}
+		}
+	});
+var elm$core$Array$translateIndex = F2(
+	function (index, _n0) {
+		var len = _n0.a;
+		var posIndex = (index < 0) ? (len + index) : index;
+		return (posIndex < 0) ? 0 : ((_Utils_cmp(posIndex, len) > 0) ? len : posIndex);
+	});
+var elm$core$Array$slice = F3(
+	function (from, to, array) {
+		var correctTo = A2(elm$core$Array$translateIndex, to, array);
+		var correctFrom = A2(elm$core$Array$translateIndex, from, array);
+		return (_Utils_cmp(correctFrom, correctTo) > 0) ? elm$core$Array$empty : A2(
+			elm$core$Array$sliceLeft,
+			correctFrom,
+			A2(elm$core$Array$sliceRight, correctTo, array));
+	});
+var elm$core$Tuple$second = function (_n0) {
+	var y = _n0.b;
+	return y;
+};
+var elm$core$Array$toIndexedList = function (array) {
+	var len = array.a;
+	var helper = F2(
+		function (entry, _n0) {
+			var index = _n0.a;
+			var list = _n0.b;
+			return _Utils_Tuple2(
+				index - 1,
+				A2(
+					elm$core$List$cons,
+					_Utils_Tuple2(index, entry),
+					list));
+		});
+	return A3(
+		elm$core$Array$foldr,
+		helper,
+		_Utils_Tuple2(len - 1, _List_Nil),
+		array).b;
+};
+var visotype$elm_eval$Eval$Core$Error$expected = F2(
+	function (fName, typeList) {
+		return 'Type error in arguments to `' + (fName + ('`: expected ' + (typeList + '.')));
+	});
+var visotype$elm_eval$Eval$Core$Error$noFunction = function (fName) {
+	return 'Functions like `' + (fName + ('` that take other functions as arguments can\'t be called through this ' + ('interface because Elm only allows primitive types, arrays, and objects ' + ('to be passed in through ports. As an alternative, you could chain ' + ('`elm-eval` function calls on the JavaScript side using promise chains ' + 'or aync/await syntax.')))));
+};
+var visotype$elm_eval$Eval$Core$Error$notFound = F2(
+	function (moduleName, fName) {
+		return 'A function named `' + (fName + ('` was not found in the `' + (moduleName + '` core library.')));
+	});
+var elm$core$Array$foldl = F3(
+	function (func, baseCase, _n0) {
+		var tree = _n0.c;
+		var tail = _n0.d;
+		var helper = F2(
+			function (node, acc) {
+				if (!node.$) {
+					var subTree = node.a;
+					return A3(elm$core$Elm$JsArray$foldl, helper, acc, subTree);
+				} else {
+					var values = node.a;
+					return A3(elm$core$Elm$JsArray$foldl, func, acc, values);
+				}
+			});
+		return A3(
+			elm$core$Elm$JsArray$foldl,
+			func,
+			A3(elm$core$Elm$JsArray$foldl, helper, baseCase, tree),
+			tail);
+	});
+var elm$json$Json$Encode$array = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				elm$core$Array$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(0),
+				entries));
+	});
+var visotype$elm_eval$Eval$Encode$array = elm$json$Json$Encode$array(
+	function (v) {
+		return v;
+	});
+var elm$core$String$cons = _String_cons;
+var elm$core$String$fromChar = function (_char) {
+	return A2(elm$core$String$cons, _char, '');
+};
+var visotype$elm_eval$Eval$Encode$arrayChar = elm$json$Json$Encode$array(
+	A2(elm$core$Basics$composeR, elm$core$String$fromChar, elm$json$Json$Encode$string));
+var elm$json$Json$Encode$float = _Json_wrap;
+var visotype$elm_eval$Eval$Encode$arrayFloat = elm$json$Json$Encode$array(elm$json$Json$Encode$float);
+var elm$json$Json$Encode$int = _Json_wrap;
+var visotype$elm_eval$Eval$Encode$arrayInt = elm$json$Json$Encode$array(elm$json$Json$Encode$int);
+var visotype$elm_eval$Eval$Encode$arrayString = elm$json$Json$Encode$array(elm$json$Json$Encode$string);
+var visotype$elm_eval$Eval$Encode$bool = elm$json$Json$Encode$bool;
+var visotype$elm_eval$Eval$Encode$char = A2(elm$core$Basics$composeR, elm$core$String$fromChar, elm$json$Json$Encode$string);
+var visotype$elm_eval$Eval$Encode$float = elm$json$Json$Encode$float;
+var visotype$elm_eval$Eval$Encode$int = elm$json$Json$Encode$int;
+var elm$json$Json$Encode$list = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				elm$core$List$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(0),
+				entries));
+	});
+var visotype$elm_eval$Eval$Encode$list = elm$json$Json$Encode$list(
+	function (v) {
+		return v;
+	});
+var visotype$elm_eval$Eval$Encode$listTuple2 = function (_n0) {
+	var da = _n0.a;
+	var db = _n0.b;
+	return elm$json$Json$Encode$list(
+		function (_n1) {
+			var a = _n1.a;
+			var b = _n1.b;
+			return A2(
+				elm$json$Json$Encode$list,
+				function (v) {
+					return v;
+				},
+				_List_fromArray(
+					[
+						da(a),
+						db(b)
+					]));
+		});
+};
+var visotype$elm_eval$Eval$Encode$string = elm$json$Json$Encode$string;
+var visotype$elm_eval$Eval$Encode$value = function (v) {
+	return v;
+};
+var visotype$elm_eval$Eval$Function$F0 = function (a) {
+	return {$: 0, a: a};
+};
+var visotype$elm_eval$Eval$Function$F1 = function (a) {
+	return {$: 1, a: a};
+};
+var visotype$elm_eval$Eval$Function$F2 = function (a) {
+	return {$: 2, a: a};
+};
+var visotype$elm_eval$Eval$Function$F3 = function (a) {
+	return {$: 3, a: a};
+};
+var elm$core$Result$toMaybe = function (result) {
+	if (!result.$) {
+		var v = result.a;
+		return elm$core$Maybe$Just(v);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$json$Json$Decode$array = _Json_decodeArray;
 var elm$json$Json$Decode$decodeValue = _Json_run;
+var visotype$elm_eval$Eval$Try$array = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$array(elm$json$Json$Decode$value)),
+	elm$core$Result$toMaybe);
+var elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (!maybe.$) {
+			var value = maybe.a;
+			return elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
+	});
+var elm$core$List$foldrHelper = F4(
+	function (fn, acc, ctr, ls) {
+		if (!ls.b) {
+			return acc;
+		} else {
+			var a = ls.a;
+			var r1 = ls.b;
+			if (!r1.b) {
+				return A2(fn, a, acc);
+			} else {
+				var b = r1.a;
+				var r2 = r1.b;
+				if (!r2.b) {
+					return A2(
+						fn,
+						a,
+						A2(fn, b, acc));
+				} else {
+					var c = r2.a;
+					var r3 = r2.b;
+					if (!r3.b) {
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(fn, c, acc)));
+					} else {
+						var d = r3.a;
+						var r4 = r3.b;
+						var res = (ctr > 500) ? A3(
+							elm$core$List$foldl,
+							fn,
+							acc,
+							elm$core$List$reverse(r4)) : A4(elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(
+									fn,
+									c,
+									A2(fn, d, res))));
+					}
+				}
+			}
+		}
+	});
+var elm$core$List$foldr = F3(
+	function (fn, acc, ls) {
+		return A4(elm$core$List$foldrHelper, fn, acc, 0, ls);
+	});
+var elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
+var elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
+var elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (!maybeValue.$) {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
+	});
+var elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (!maybe.$) {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var elm$json$Json$Decode$list = _Json_decodeList;
+var elm$json$Json$Decode$map = _Json_map1;
+var elm$core$String$foldr = _String_foldr;
+var elm$core$String$toList = function (string) {
+	return A3(elm$core$String$foldr, elm$core$List$cons, _List_Nil, string);
+};
+var elm$json$Json$Decode$string = _Json_decodeString;
+var visotype$elm_eval$Eval$Try$string = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$string),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$char = function () {
+	var singleChar = function (s) {
+		var _n0 = elm$core$String$toList(s);
+		if (_n0.b && (!_n0.b.b)) {
+			var first = _n0.a;
+			return elm$core$Maybe$Just(first);
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
+	};
+	return A2(
+		elm$core$Basics$composeR,
+		visotype$elm_eval$Eval$Try$string,
+		elm$core$Maybe$andThen(singleChar));
+}();
+var visotype$elm_eval$Eval$Try$listChar = function () {
+	var resolveMaybes = function (ls) {
+		var _n0 = A2(elm$core$List$member, elm$core$Maybe$Nothing, ls);
+		if (_n0) {
+			return elm$core$Maybe$Nothing;
+		} else {
+			return elm$core$Maybe$Just(
+				A2(
+					elm$core$List$map,
+					elm$core$Maybe$withDefault('!'),
+					ls));
+		}
+	};
+	return A2(
+		elm$core$Basics$composeR,
+		elm$json$Json$Decode$decodeValue(
+			elm$json$Json$Decode$list(
+				A2(elm$json$Json$Decode$map, visotype$elm_eval$Eval$Try$char, elm$json$Json$Decode$value))),
+		A2(
+			elm$core$Basics$composeR,
+			elm$core$Result$toMaybe,
+			elm$core$Maybe$andThen(resolveMaybes)));
+}();
+var visotype$elm_eval$Eval$Try$arrayChar = A2(
+	elm$core$Basics$composeR,
+	visotype$elm_eval$Eval$Try$listChar,
+	elm$core$Maybe$map(elm$core$Array$fromList));
+var elm$json$Json$Decode$float = _Json_decodeFloat;
+var visotype$elm_eval$Eval$Try$arrayFloat = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$array(elm$json$Json$Decode$float)),
+	elm$core$Result$toMaybe);
+var elm$json$Json$Decode$int = _Json_decodeInt;
+var visotype$elm_eval$Eval$Try$arrayInt = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$array(elm$json$Json$Decode$int)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$arrayString = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$array(elm$json$Json$Decode$string)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$float = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$float),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$int = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$int),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$list = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$value)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Wrap$a0 = F3(
+	function (f, encoder, _null) {
+		return elm$core$Result$Ok(
+			encoder(
+				f(_null)));
+	});
+var visotype$elm_eval$Eval$Wrap$a1 = F5(
+	function (f, da, encoder, errorMsg, a) {
+		return A2(
+			elm$core$Result$fromMaybe,
+			errorMsg,
+			A2(
+				elm$core$Maybe$map,
+				encoder,
+				A2(
+					elm$core$Maybe$map,
+					f,
+					da(a))));
+	});
+var elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 1) {
+			return elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 1) {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
+var visotype$elm_eval$Eval$Wrap$a2 = F5(
+	function (f, _n0, encoder, errorMsg, _n1) {
+		var da = _n0.a;
+		var db = _n0.b;
+		var a = _n1.a;
+		var b = _n1.b;
+		return A2(
+			elm$core$Result$fromMaybe,
+			errorMsg,
+			A2(
+				elm$core$Maybe$map,
+				encoder,
+				A3(
+					elm$core$Maybe$map2,
+					f,
+					da(a),
+					db(b))));
+	});
+var elm$core$Maybe$map3 = F4(
+	function (func, ma, mb, mc) {
+		if (ma.$ === 1) {
+			return elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 1) {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				if (mc.$ === 1) {
+					return elm$core$Maybe$Nothing;
+				} else {
+					var c = mc.a;
+					return elm$core$Maybe$Just(
+						A3(func, a, b, c));
+				}
+			}
+		}
+	});
+var visotype$elm_eval$Eval$Wrap$a3 = F5(
+	function (f, _n0, encoder, errorMsg, _n1) {
+		var da = _n0.a;
+		var db = _n0.b;
+		var dc = _n0.c;
+		var a = _n1.a;
+		var b = _n1.b;
+		var c = _n1.c;
+		return A2(
+			elm$core$Result$fromMaybe,
+			errorMsg,
+			A2(
+				elm$core$Maybe$map,
+				encoder,
+				A4(
+					elm$core$Maybe$map3,
+					f,
+					da(a),
+					db(b),
+					dc(c))));
+	});
+var visotype$elm_eval$Eval$Core$Array$lib = function (fName) {
+	var setter = F4(
+		function (_n7, encoder, _n8, _n9) {
+			var db = _n7.a;
+			var dc = _n7.b;
+			var tb = _n8.a;
+			var tc = _n8.b;
+			var a = _n9.a;
+			var b = _n9.b;
+			var c = _n9.c;
+			var _n5 = _Utils_Tuple3(
+				visotype$elm_eval$Eval$Try$int(a),
+				db(b),
+				dc(c));
+			if (((!_n5.a.$) && (!_n5.b.$)) && (!_n5.c.$)) {
+				var index = _n5.a.a;
+				var value = _n5.b.a;
+				var array = _n5.c.a;
+				var _n6 = A2(elm$core$Array$get, index, array);
+				if (!_n6.$) {
+					return elm$core$Result$Ok(
+						encoder(
+							A3(elm$core$Array$set, index, value, array)));
+				} else {
+					return elm$core$Result$Err(
+						'Can\'t set the element at index ' + (elm$core$String$fromInt(index) + (' on an array of length ' + (elm$core$String$fromInt(
+							elm$core$Array$length(array)) + '.'))));
+				}
+			} else {
+				return elm$core$Result$Err(
+					A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[int, ' + (tb + (', ' + (tc + ']')))));
+			}
+		});
+	var getter = F4(
+		function (db, encoder, tb, _n4) {
+			var a = _n4.a;
+			var b = _n4.b;
+			var _n2 = _Utils_Tuple2(
+				visotype$elm_eval$Eval$Try$int(a),
+				db(b));
+			if ((!_n2.a.$) && (!_n2.b.$)) {
+				var index = _n2.a.a;
+				var array = _n2.b.a;
+				var _n3 = A2(elm$core$Array$get, index, array);
+				if (!_n3.$) {
+					var value = _n3.a;
+					return elm$core$Result$Ok(
+						encoder(value));
+				} else {
+					return elm$core$Result$Err(
+						'Can\'t get the element at index ' + (elm$core$String$fromInt(index) + (' from an array of length ' + (elm$core$String$fromInt(
+							elm$core$Array$length(array)) + '.'))));
+				}
+			} else {
+				return elm$core$Result$Err(
+					A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[int, ' + (tb + ']')));
+			}
+		});
+	switch (fName) {
+		case 'empty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F0(
+					A2(
+						visotype$elm_eval$Eval$Wrap$a0,
+						function (_n1) {
+							return elm$core$Array$empty;
+						},
+						visotype$elm_eval$Eval$Encode$array)));
+		case 'initialize':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'repeat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$repeat,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, elm$core$Maybe$Just),
+						visotype$elm_eval$Eval$Encode$array,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, any]'))));
+		case 'fromList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Array$fromList,
+						visotype$elm_eval$Eval$Try$list,
+						visotype$elm_eval$Eval$Encode$array,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'isEmpty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Array$isEmpty,
+						visotype$elm_eval$Eval$Try$array,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'length':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Array$length,
+						visotype$elm_eval$Eval$Try$array,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'get':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$array, visotype$elm_eval$Eval$Encode$value, 'array')));
+		case 'get.string':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$arrayString, visotype$elm_eval$Eval$Encode$string, 'array(string)')));
+		case 'get.char':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$arrayChar, visotype$elm_eval$Eval$Encode$char, 'array(char)')));
+		case 'get.int':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$arrayInt, visotype$elm_eval$Eval$Encode$int, 'array(int)')));
+		case 'get.float':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$arrayFloat, visotype$elm_eval$Eval$Encode$float, 'array(float)')));
+		case 'set':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A3(
+						setter,
+						_Utils_Tuple2(elm$core$Maybe$Just, visotype$elm_eval$Eval$Try$array),
+						visotype$elm_eval$Eval$Encode$array,
+						_Utils_Tuple2('value', 'array'))));
+		case 'set.string':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A3(
+						setter,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$arrayString),
+						visotype$elm_eval$Eval$Encode$arrayString,
+						_Utils_Tuple2('string', 'array(string)'))));
+		case 'set.char':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A3(
+						setter,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$arrayChar),
+						visotype$elm_eval$Eval$Encode$arrayChar,
+						_Utils_Tuple2('string-1', 'array(string-1)'))));
+		case 'set.int':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A3(
+						setter,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$arrayInt),
+						visotype$elm_eval$Eval$Encode$arrayInt,
+						_Utils_Tuple2('integer', 'array(integer)'))));
+		case 'set.float':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A3(
+						setter,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$arrayFloat),
+						visotype$elm_eval$Eval$Encode$arrayFloat,
+						_Utils_Tuple2('number', 'array(number)'))));
+		case 'push':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$push,
+						_Utils_Tuple2(elm$core$Maybe$Just, visotype$elm_eval$Eval$Try$array),
+						visotype$elm_eval$Eval$Encode$array,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[any, array]'))));
+		case 'push.string':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$push,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$arrayString),
+						visotype$elm_eval$Eval$Encode$arrayString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, array(string)]'))));
+		case 'push.char':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$push,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$arrayChar),
+						visotype$elm_eval$Eval$Encode$arrayChar,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1, array(string-1)]'))));
+		case 'push.int':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$push,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$arrayInt),
+						visotype$elm_eval$Eval$Encode$arrayInt,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array(integer)]'))));
+		case 'push.float':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$push,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$arrayFloat),
+						visotype$elm_eval$Eval$Encode$arrayFloat,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[float, array(float)]'))));
+		case 'append':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$array, visotype$elm_eval$Eval$Try$array),
+						visotype$elm_eval$Eval$Encode$array,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array, array]'))));
+		case 'append.string':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$arrayString, visotype$elm_eval$Eval$Try$arrayString),
+						visotype$elm_eval$Eval$Encode$arrayString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string), array(string)]'))));
+		case 'append.char':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$arrayChar, visotype$elm_eval$Eval$Try$arrayChar),
+						visotype$elm_eval$Eval$Encode$arrayChar,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1), array(string-1)]'))));
+		case 'append.int':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$arrayInt, visotype$elm_eval$Eval$Try$arrayInt),
+						visotype$elm_eval$Eval$Encode$arrayInt,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer), array(integer)]'))));
+		case 'append.float':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Array$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$arrayFloat, visotype$elm_eval$Eval$Try$arrayFloat),
+						visotype$elm_eval$Eval$Encode$arrayFloat,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number), array(number)]'))));
+		case 'slice':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$Array$slice,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$array),
+						visotype$elm_eval$Eval$Encode$array,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer, array]'))));
+		case 'toList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Array$toList,
+						visotype$elm_eval$Eval$Try$array,
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'toIndexedList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Array$toIndexedList,
+						visotype$elm_eval$Eval$Try$array,
+						visotype$elm_eval$Eval$Encode$listTuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$int, visotype$elm_eval$Eval$Encode$value)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'map':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'indexedMap':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldl':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldr':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'filter':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Array', fName));
+	}
+};
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var elm$core$Basics$abs = function (n) {
+	return (n < 0) ? (-n) : n;
+};
+var elm$core$Basics$acos = _Basics_acos;
+var elm$core$Basics$asin = _Basics_asin;
+var elm$core$Basics$atan = _Basics_atan;
+var elm$core$Basics$atan2 = _Basics_atan2;
+var elm$core$Basics$clamp = F3(
+	function (low, high, number) {
+		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
+	});
+var elm$core$Basics$cos = _Basics_cos;
+var elm$core$Basics$pi = _Basics_pi;
+var elm$core$Basics$degrees = function (angleInDegrees) {
+	return (angleInDegrees * elm$core$Basics$pi) / 180;
+};
+var elm$core$Basics$e = _Basics_e;
+var elm$core$Basics$sin = _Basics_sin;
+var elm$core$Basics$fromPolar = function (_n0) {
+	var radius = _n0.a;
+	var theta = _n0.b;
+	return _Utils_Tuple2(
+		radius * elm$core$Basics$cos(theta),
+		radius * elm$core$Basics$sin(theta));
+};
+var elm$core$Basics$isInfinite = _Basics_isInfinite;
+var elm$core$Basics$isNaN = _Basics_isNaN;
+var elm$core$Basics$modBy = _Basics_modBy;
+var elm$core$Basics$not = _Basics_not;
+var elm$core$Basics$pow = _Basics_pow;
+var elm$core$Basics$radians = function (angleInRadians) {
+	return angleInRadians;
+};
+var elm$core$Basics$round = _Basics_round;
+var elm$core$Basics$sqrt = _Basics_sqrt;
+var elm$core$Basics$tan = _Basics_tan;
+var elm$core$Basics$toPolar = function (_n0) {
+	var x = _n0.a;
+	var y = _n0.b;
+	return _Utils_Tuple2(
+		elm$core$Basics$sqrt((x * x) + (y * y)),
+		A2(elm$core$Basics$atan2, y, x));
+};
+var elm$core$Basics$truncate = _Basics_truncate;
+var elm$core$Basics$turns = function (angleInTurns) {
+	return (2 * elm$core$Basics$pi) * angleInTurns;
+};
+var elm$core$Basics$xor = _Basics_xor;
+var visotype$elm_eval$Eval$Core$Error$noCompare = function (fName) {
+	return 'Comparison functions like `' + (fName + ('` can\'t be called through this interface because Elm doesn\'t support ' + 'type inference on JavaScript values passed in through ports.'));
+};
+var elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3(elm$core$List$foldr, elm$core$List$cons, ys, xs);
+		}
+	});
+var elm$core$List$concat = function (lists) {
+	return A3(elm$core$List$foldr, elm$core$List$append, _List_Nil, lists);
+};
+var elm$core$List$intersperse = F2(
+	function (sep, xs) {
+		if (!xs.b) {
+			return _List_Nil;
+		} else {
+			var hd = xs.a;
+			var tl = xs.b;
+			var step = F2(
+				function (x, rest) {
+					return A2(
+						elm$core$List$cons,
+						sep,
+						A2(elm$core$List$cons, x, rest));
+				});
+			var spersed = A3(elm$core$List$foldr, step, _List_Nil, tl);
+			return A2(elm$core$List$cons, hd, spersed);
+		}
+	});
+var elm$core$List$isEmpty = function (xs) {
+	if (!xs.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var elm$core$List$product = function (numbers) {
+	return A3(elm$core$List$foldl, elm$core$Basics$mul, 1, numbers);
+};
+var elm$core$List$repeatHelp = F3(
+	function (result, n, value) {
+		repeatHelp:
+		while (true) {
+			if (n <= 0) {
+				return result;
+			} else {
+				var $temp$result = A2(elm$core$List$cons, value, result),
+					$temp$n = n - 1,
+					$temp$value = value;
+				result = $temp$result;
+				n = $temp$n;
+				value = $temp$value;
+				continue repeatHelp;
+			}
+		}
+	});
+var elm$core$List$repeat = F2(
+	function (n, value) {
+		return A3(elm$core$List$repeatHelp, _List_Nil, n, value);
+	});
+var elm$core$List$sum = function (numbers) {
+	return A3(elm$core$List$foldl, elm$core$Basics$add, 0, numbers);
+};
+var elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2(elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return elm$core$List$reverse(
+			A3(elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _n0 = _Utils_Tuple2(n, list);
+			_n0$1:
+			while (true) {
+				_n0$5:
+				while (true) {
+					if (!_n0.b.b) {
+						return list;
+					} else {
+						if (_n0.b.b.b) {
+							switch (_n0.a) {
+								case 1:
+									break _n0$1;
+								case 2:
+									var _n2 = _n0.b;
+									var x = _n2.a;
+									var _n3 = _n2.b;
+									var y = _n3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_n0.b.b.b.b) {
+										var _n4 = _n0.b;
+										var x = _n4.a;
+										var _n5 = _n4.b;
+										var y = _n5.a;
+										var _n6 = _n5.b;
+										var z = _n6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _n0$5;
+									}
+								default:
+									if (_n0.b.b.b.b && _n0.b.b.b.b.b) {
+										var _n7 = _n0.b;
+										var x = _n7.a;
+										var _n8 = _n7.b;
+										var y = _n8.a;
+										var _n9 = _n8.b;
+										var z = _n9.a;
+										var _n10 = _n9.b;
+										var w = _n10.a;
+										var tl = _n10.b;
+										return (ctr > 1000) ? A2(
+											elm$core$List$cons,
+											x,
+											A2(
+												elm$core$List$cons,
+												y,
+												A2(
+													elm$core$List$cons,
+													z,
+													A2(
+														elm$core$List$cons,
+														w,
+														A2(elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											elm$core$List$cons,
+											x,
+											A2(
+												elm$core$List$cons,
+												y,
+												A2(
+													elm$core$List$cons,
+													z,
+													A2(
+														elm$core$List$cons,
+														w,
+														A3(elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _n0$5;
+									}
+							}
+						} else {
+							if (_n0.a === 1) {
+								break _n0$1;
+							} else {
+								break _n0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _n1 = _n0.b;
+			var x = _n1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var elm$core$List$take = F2(
+	function (n, list) {
+		return A3(elm$core$List$takeFast, 0, n, list);
+	});
+var elm$core$List$unzip = function (pairs) {
+	var step = F2(
+		function (_n0, _n1) {
+			var x = _n0.a;
+			var y = _n0.b;
+			var xs = _n1.a;
+			var ys = _n1.b;
+			return _Utils_Tuple2(
+				A2(elm$core$List$cons, x, xs),
+				A2(elm$core$List$cons, y, ys));
+		});
+	return A3(
+		elm$core$List$foldr,
+		step,
+		_Utils_Tuple2(_List_Nil, _List_Nil),
+		pairs);
+};
+var visotype$elm_eval$Eval$Encode$listInt = elm$json$Json$Encode$list(elm$json$Json$Encode$int);
+var visotype$elm_eval$Eval$Encode$tuple2 = F2(
+	function (_n0, _n1) {
+		var da = _n0.a;
+		var db = _n0.b;
+		var a = _n1.a;
+		var b = _n1.b;
+		return A2(
+			elm$json$Json$Encode$list,
+			function (v) {
+				return v;
+			},
+			_List_fromArray(
+				[
+					da(a),
+					db(b)
+				]));
+	});
+var visotype$elm_eval$Eval$Try$listFloat = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$float)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$listList = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(
+			elm$json$Json$Decode$list(elm$json$Json$Decode$value))),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$listTuple2 = function () {
+	var resolveMaybes = function (ls) {
+		var _n0 = A2(elm$core$List$member, elm$core$Maybe$Nothing, ls);
+		if (_n0) {
+			return elm$core$Maybe$Nothing;
+		} else {
+			return elm$core$Maybe$Just(
+				A2(
+					elm$core$List$map,
+					elm$core$Maybe$withDefault(
+						_Utils_Tuple2(elm$json$Json$Encode$null, elm$json$Json$Encode$null)),
+					ls));
+		}
+	};
+	return A2(
+		elm$core$Basics$composeR,
+		visotype$elm_eval$Eval$Try$listList,
+		A2(
+			elm$core$Basics$composeR,
+			elm$core$Maybe$map(
+				elm$core$List$map(visotype$elm_eval$Eval$Try$List$tuple2)),
+			elm$core$Maybe$andThen(resolveMaybes)));
+}();
+var visotype$elm_eval$Eval$Core$List$lib = function (fName) {
+	switch (fName) {
+		case 'singleton':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (a) {
+						return elm$core$Result$Ok(
+							visotype$elm_eval$Eval$Encode$list(
+								_List_fromArray(
+									[a])));
+					}));
+		case 'repeat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$repeat,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, elm$core$Maybe$Just),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, any]'))));
+		case 'range':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$range,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$listInt,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case '(::)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$cons,
+						_Utils_Tuple2(elm$core$Maybe$Just, visotype$elm_eval$Eval$Try$list),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[any, array]'))));
+		case 'map':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'indexedMap':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldl':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldr':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'filter':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'filterMap':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'length':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$length,
+						visotype$elm_eval$Eval$Try$list,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'reverse':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$reverse,
+						visotype$elm_eval$Eval$Try$list,
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'member':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'all':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'any':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'maximum':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'minimum':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'sum':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$sum,
+						visotype$elm_eval$Eval$Try$listFloat,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number)]'))));
+		case 'product':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$product,
+						visotype$elm_eval$Eval$Try$listFloat,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number)]'))));
+		case 'append':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$list, visotype$elm_eval$Eval$Try$list),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array, array]'))));
+		case 'concat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$concat,
+						visotype$elm_eval$Eval$Try$listList,
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(array)]'))));
+		case 'concatMap':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'intersperse':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$intersperse,
+						_Utils_Tuple2(elm$core$Maybe$Just, visotype$elm_eval$Eval$Try$list),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[any, array]'))));
+		case 'map2':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'map3':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'map4':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'map5':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'sort':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'sortBy':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'sortWith':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'isEmpty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$isEmpty,
+						visotype$elm_eval$Eval$Try$list,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array]'))));
+		case 'head':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (value) {
+						var _n1 = A2(
+							elm$core$Maybe$withDefault,
+							_List_Nil,
+							visotype$elm_eval$Eval$Try$list(value));
+						if (!_n1.b) {
+							return elm$core$Result$Err('Can\'t return the first element of an empty array.');
+						} else {
+							var first = _n1.a;
+							return elm$core$Result$Ok(first);
+						}
+					}));
+		case 'tail':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (value) {
+						var _n2 = A2(
+							elm$core$Maybe$withDefault,
+							_List_Nil,
+							visotype$elm_eval$Eval$Try$list(value));
+						if (!_n2.b) {
+							return elm$core$Result$Err('Can\'t partition an empty array.');
+						} else {
+							var rest = _n2.b;
+							return elm$core$Result$Ok(
+								visotype$elm_eval$Eval$Encode$list(rest));
+						}
+					}));
+		case 'take':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$take,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$list),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array]'))));
+		case 'drop':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$List$drop,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$list),
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array]'))));
+		case 'partition':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'unzip':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$List$unzip,
+						visotype$elm_eval$Eval$Try$listTuple2,
+						visotype$elm_eval$Eval$Encode$tuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$list, visotype$elm_eval$Eval$Encode$list)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(array-2)]'))));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'List', fName));
+	}
+};
+var elm$json$Json$Decode$bool = _Json_decodeBool;
+var visotype$elm_eval$Eval$Try$bool = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$bool),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Core$Basics$lib = function (fName) {
+	switch (fName) {
+		case '(+)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$add,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case '(-)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$sub,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case '(*)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$mul,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case '(/)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$fdiv,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case '(//)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$idiv,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case '(^)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$pow,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case 'round':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$round,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'floor':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$floor,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'ceiling':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$ceiling,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'truncate':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$truncate,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case '(==)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case '(/=)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case '(<)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case '(>)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case '(<=)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case '(>=)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'max':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'min':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'compare':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+		case 'not':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$not,
+						visotype$elm_eval$Eval$Try$bool,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[boolean]'))));
+		case '(&&)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$and,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$bool, visotype$elm_eval$Eval$Try$bool),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[boolean, boolean]'))));
+		case '(||)':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$or,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$bool, visotype$elm_eval$Eval$Try$bool),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[boolean, boolean]'))));
+		case 'xor':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$xor,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$bool, visotype$elm_eval$Eval$Try$bool),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[boolean, boolean]'))));
+		case '(++)':
+			return elm$core$Result$Err('The `(++)` function can\'t be called throught this interface because ' + ('Elm doesn\'t support type inference on JavaScript values passed in ' + 'through ports. Use `String.append` or `List.append` instead.'));
+		case 'modBy':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$modBy,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'remainderBy':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$remainderBy,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'negate':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$negate,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'abs':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$abs,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'clamp':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$Basics$clamp,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number, number]'))));
+		case 'sqrt':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$sqrt,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'logBase':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$logBase,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case 'e':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F0(
+					A2(
+						visotype$elm_eval$Eval$Wrap$a0,
+						function (_n1) {
+							return elm$core$Basics$e;
+						},
+						visotype$elm_eval$Eval$Encode$float)));
+		case 'degrees':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$degrees,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'radians':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$radians,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'turns':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$turns,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'pi':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F0(
+					A2(
+						visotype$elm_eval$Eval$Wrap$a0,
+						function (_n2) {
+							return elm$core$Basics$pi;
+						},
+						visotype$elm_eval$Eval$Encode$float)));
+		case 'cos':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$cos,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'sin':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$sin,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'tan':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$tan,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'acos':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$acos,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'asin':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$asin,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'atan':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$atan,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'atan2':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Basics$atan2,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$float,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'toPolar':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						F2(
+							function (a, b) {
+								return elm$core$Basics$toPolar(
+									_Utils_Tuple2(a, b));
+							}),
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$tuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$float, visotype$elm_eval$Eval$Encode$float)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case 'fromPolar':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						F2(
+							function (a, b) {
+								return elm$core$Basics$fromPolar(
+									_Utils_Tuple2(a, b));
+							}),
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$float),
+						visotype$elm_eval$Eval$Encode$tuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$float, visotype$elm_eval$Eval$Encode$float)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number, number]'))));
+		case 'isNaN':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$isNaN,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'isInfinite':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Basics$isInfinite,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'identity':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (a) {
+						return elm$core$Result$Ok(a);
+					}));
+		case 'always':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					function (_n3) {
+						var a = _n3.a;
+						return elm$core$Result$Ok(a);
+					}));
+		case '(<|)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case '(|>)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case '(<<)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case '(>>)':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case '(::)':
+			return visotype$elm_eval$Eval$Core$List$lib(fName);
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Basics', fName) + (' If you are trying to access a function in another core library, ' + 'the module name must be given first (example: `String.length`).'));
+	}
+};
+var elm$core$Bitwise$complement = _Bitwise_complement;
+var elm$core$Bitwise$or = _Bitwise_or;
+var elm$core$Bitwise$shiftRightBy = _Bitwise_shiftRightBy;
+var elm$core$Bitwise$xor = _Bitwise_xor;
+var visotype$elm_eval$Eval$Core$Bitwise$lib = function (fName) {
+	switch (fName) {
+		case 'and':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$and,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'or':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$or,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'xor':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$xor,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'complement':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Bitwise$complement,
+						visotype$elm_eval$Eval$Try$int,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer]'))));
+		case 'shiftLeftBy':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$shiftLeftBy,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'shiftRightBy':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$shiftRightBy,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		case 'shiftRightZfBy':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Bitwise$shiftRightBy,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int),
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer]'))));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Bitwise', fName));
+	}
+};
+var elm$core$Char$fromCode = _Char_fromCode;
+var elm$core$Char$isHexDigit = function (_char) {
+	var code = elm$core$Char$toCode(_char);
+	return ((48 <= code) && (code <= 57)) || (((65 <= code) && (code <= 70)) || ((97 <= code) && (code <= 102)));
+};
+var elm$core$Char$isOctDigit = function (_char) {
+	var code = elm$core$Char$toCode(_char);
+	return (code <= 55) && (48 <= code);
+};
+var elm$core$Char$toLocaleLower = _Char_toLocaleLower;
+var elm$core$Char$toLocaleUpper = _Char_toLocaleUpper;
+var elm$core$Char$toLower = _Char_toLower;
+var elm$core$Char$toUpper = _Char_toUpper;
+var visotype$elm_eval$Eval$Core$Char$lib = function (fName) {
+	switch (fName) {
+		case 'isUpper':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isUpper,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isLower':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isLower,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isAlpha':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isAlpha,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isAlphaNum':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isAlphaNum,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isDigit':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isDigit,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isOctDigit':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isOctDigit,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'isHexDigit':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$isHexDigit,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'toUpper':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$toUpper,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$char,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'toLower':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$toLower,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$char,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'toLocaleUpper':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$toLocaleUpper,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$char,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'toLocaleLower':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$toLocaleLower,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$char,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'toCode':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$toCode,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'fromCode':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Char$fromCode,
+						visotype$elm_eval$Eval$Try$int,
+						visotype$elm_eval$Eval$Encode$char,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer]'))));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Char', fName));
+	}
+};
+var elm$core$Dict$foldl = F3(
+	function (func, acc, dict) {
+		foldl:
+		while (true) {
+			if (dict.$ === -2) {
+				return acc;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var $temp$func = func,
+					$temp$acc = A3(
+					func,
+					key,
+					value,
+					A3(elm$core$Dict$foldl, func, acc, left)),
+					$temp$dict = right;
+				func = $temp$func;
+				acc = $temp$acc;
+				dict = $temp$dict;
+				continue foldl;
+			}
+		}
+	});
 var elm$core$Dict$Black = 1;
 var elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
 		return {$: -1, a: a, b: b, c: c, d: d, e: e};
 	});
-var elm$core$Basics$compare = _Utils_compare;
+var elm$core$Dict$RBEmpty_elm_builtin = {$: -2};
 var elm$core$Dict$Red = 0;
 var elm$core$Dict$balance = F5(
 	function (color, key, value, left, right) {
@@ -2845,217 +5541,6 @@ var elm$core$Dict$balance = F5(
 					A5(elm$core$Dict$RBNode_elm_builtin, 1, key, value, lRight, right));
 			} else {
 				return A5(elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
-			}
-		}
-	});
-var elm$core$Dict$insertHelp = F3(
-	function (key, value, dict) {
-		if (dict.$ === -2) {
-			return A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, elm$core$Dict$RBEmpty_elm_builtin, elm$core$Dict$RBEmpty_elm_builtin);
-		} else {
-			var nColor = dict.a;
-			var nKey = dict.b;
-			var nValue = dict.c;
-			var nLeft = dict.d;
-			var nRight = dict.e;
-			var _n1 = A2(elm$core$Basics$compare, key, nKey);
-			switch (_n1) {
-				case 0:
-					return A5(
-						elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						A3(elm$core$Dict$insertHelp, key, value, nLeft),
-						nRight);
-				case 1:
-					return A5(elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
-				default:
-					return A5(
-						elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						nLeft,
-						A3(elm$core$Dict$insertHelp, key, value, nRight));
-			}
-		}
-	});
-var elm$core$Dict$insert = F3(
-	function (key, value, dict) {
-		var _n0 = A3(elm$core$Dict$insertHelp, key, value, dict);
-		if ((_n0.$ === -1) && (!_n0.a)) {
-			var _n1 = _n0.a;
-			var k = _n0.b;
-			var v = _n0.c;
-			var l = _n0.d;
-			var r = _n0.e;
-			return A5(elm$core$Dict$RBNode_elm_builtin, 1, k, v, l, r);
-		} else {
-			var x = _n0;
-			return x;
-		}
-	});
-var elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		elm$core$List$foldl,
-		F2(
-			function (_n0, dict) {
-				var key = _n0.a;
-				var value = _n0.b;
-				return A3(elm$core$Dict$insert, key, value, dict);
-			}),
-		elm$core$Dict$empty,
-		assocs);
-};
-var elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
-var elm$json$Json$Decode$map = _Json_map1;
-var elm$json$Json$Decode$dict = function (decoder) {
-	return A2(
-		elm$json$Json$Decode$map,
-		elm$core$Dict$fromList,
-		elm$json$Json$Decode$keyValuePairs(decoder));
-};
-var elm$json$Json$Decode$value = _Json_decodeValue;
-var author$project$Model$fromJson = A2(
-	elm$core$Basics$composeR,
-	elm$json$Json$Decode$decodeValue(
-		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
-	elm$core$Result$withDefault(elm$core$Dict$empty));
-var author$project$Msg$Eval = function (a) {
-	return {$: 0, a: a};
-};
-var author$project$Msg$UpdateKey = function (a) {
-	return {$: 2, a: a};
-};
-var author$project$Msg$UpdateModel = function (a) {
-	return {$: 1, a: a};
-};
-var author$project$Ports$eval = _Platform_incomingPort('eval', elm$json$Json$Decode$value);
-var author$project$Ports$updateKey = _Platform_incomingPort('updateKey', elm$json$Json$Decode$value);
-var author$project$Ports$updateModel = _Platform_incomingPort('updateModel', elm$json$Json$Decode$value);
-var author$project$Function$F2 = function (a) {
-	return {$: 1, a: a};
-};
-var elm$core$Result$toMaybe = function (result) {
-	if (!result.$) {
-		var v = result.a;
-		return elm$core$Maybe$Just(v);
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
-var elm$json$Json$Decode$float = _Json_decodeFloat;
-var author$project$Try$float = A2(
-	elm$core$Basics$composeR,
-	elm$json$Json$Decode$decodeValue(elm$json$Json$Decode$float),
-	elm$core$Result$toMaybe);
-var elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (!maybe.$) {
-			var value = maybe.a;
-			return elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return elm$core$Maybe$Nothing;
-		}
-	});
-var elm$core$Maybe$map2 = F3(
-	function (func, ma, mb) {
-		if (ma.$ === 1) {
-			return elm$core$Maybe$Nothing;
-		} else {
-			var a = ma.a;
-			if (mb.$ === 1) {
-				return elm$core$Maybe$Nothing;
-			} else {
-				var b = mb.a;
-				return elm$core$Maybe$Just(
-					A2(func, a, b));
-			}
-		}
-	});
-var author$project$Wrap$a2 = F4(
-	function (f, _n0, eo, _n1) {
-		var da = _n0.a;
-		var db = _n0.b;
-		var a = _n1.a;
-		var b = _n1.b;
-		return A2(
-			elm$core$Maybe$map,
-			eo,
-			A3(
-				elm$core$Maybe$map2,
-				f,
-				da(a),
-				db(b)));
-	});
-var elm$json$Json$Encode$float = _Json_wrap;
-var author$project$Core$basics = function (fName) {
-	switch (fName) {
-		case '(+)':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Basics$add,
-						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
-						elm$json$Json$Encode$float)));
-		case '(-)':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Basics$sub,
-						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
-						elm$json$Json$Encode$float)));
-		case '(*)':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Basics$mul,
-						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
-						elm$json$Json$Encode$float)));
-		case '(/)':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Basics$fdiv,
-						_Utils_Tuple2(author$project$Try$float, author$project$Try$float),
-						elm$json$Json$Encode$float)));
-		default:
-			return elm$core$Maybe$Nothing;
-	}
-};
-var author$project$Try$dict = A2(
-	elm$core$Basics$composeR,
-	elm$json$Json$Decode$decodeValue(
-		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
-	elm$core$Result$toMaybe);
-var elm$core$Dict$foldl = F3(
-	function (func, acc, dict) {
-		foldl:
-		while (true) {
-			if (dict.$ === -2) {
-				return acc;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var $temp$func = func,
-					$temp$acc = A3(
-					func,
-					key,
-					value,
-					A3(elm$core$Dict$foldl, func, acc, left)),
-					$temp$dict = right;
-				func = $temp$func;
-				acc = $temp$acc;
-				dict = $temp$dict;
-				continue foldl;
 			}
 		}
 	});
@@ -3432,17 +5917,68 @@ var elm$core$Dict$diff = F2(
 			t1,
 			t2);
 	});
-var elm$core$Dict$filter = F2(
-	function (isGood, dict) {
-		return A3(
-			elm$core$Dict$foldl,
-			F3(
-				function (k, v, d) {
-					return A2(isGood, k, v) ? A3(elm$core$Dict$insert, k, v, d) : d;
-				}),
-			elm$core$Dict$empty,
-			dict);
+var elm$core$Dict$empty = elm$core$Dict$RBEmpty_elm_builtin;
+var elm$core$Basics$compare = _Utils_compare;
+var elm$core$Dict$insertHelp = F3(
+	function (key, value, dict) {
+		if (dict.$ === -2) {
+			return A5(elm$core$Dict$RBNode_elm_builtin, 0, key, value, elm$core$Dict$RBEmpty_elm_builtin, elm$core$Dict$RBEmpty_elm_builtin);
+		} else {
+			var nColor = dict.a;
+			var nKey = dict.b;
+			var nValue = dict.c;
+			var nLeft = dict.d;
+			var nRight = dict.e;
+			var _n1 = A2(elm$core$Basics$compare, key, nKey);
+			switch (_n1) {
+				case 0:
+					return A5(
+						elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						A3(elm$core$Dict$insertHelp, key, value, nLeft),
+						nRight);
+				case 1:
+					return A5(elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
+				default:
+					return A5(
+						elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						nLeft,
+						A3(elm$core$Dict$insertHelp, key, value, nRight));
+			}
+		}
 	});
+var elm$core$Dict$insert = F3(
+	function (key, value, dict) {
+		var _n0 = A3(elm$core$Dict$insertHelp, key, value, dict);
+		if ((_n0.$ === -1) && (!_n0.a)) {
+			var _n1 = _n0.a;
+			var k = _n0.b;
+			var v = _n0.c;
+			var l = _n0.d;
+			var r = _n0.e;
+			return A5(elm$core$Dict$RBNode_elm_builtin, 1, k, v, l, r);
+		} else {
+			var x = _n0;
+			return x;
+		}
+	});
+var elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		elm$core$List$foldl,
+		F2(
+			function (_n0, dict) {
+				var key = _n0.a;
+				var value = _n0.b;
+				return A3(elm$core$Dict$insert, key, value, dict);
+			}),
+		elm$core$Dict$empty,
+		assocs);
+};
 var elm$core$Dict$get = F2(
 	function (targetKey, dict) {
 		get:
@@ -3474,6 +6010,17 @@ var elm$core$Dict$get = F2(
 			}
 		}
 	});
+var elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3(elm$core$Dict$insert, k, v, d) : d;
+				}),
+			elm$core$Dict$empty,
+			dict);
+	});
 var elm$core$Dict$member = F2(
 	function (key, dict) {
 		var _n0 = A2(elm$core$Dict$get, key, dict);
@@ -3493,123 +6040,66 @@ var elm$core$Dict$intersect = F2(
 				}),
 			t1);
 	});
+var elm$core$Dict$isEmpty = function (dict) {
+	if (dict.$ === -2) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5(elm$core$Dict$RBNode_elm_builtin, 1, key, value, elm$core$Dict$RBEmpty_elm_builtin, elm$core$Dict$RBEmpty_elm_builtin);
+	});
+var elm$core$Dict$sizeHelp = F2(
+	function (n, dict) {
+		sizeHelp:
+		while (true) {
+			if (dict.$ === -2) {
+				return n;
+			} else {
+				var left = dict.d;
+				var right = dict.e;
+				var $temp$n = A2(elm$core$Dict$sizeHelp, n + 1, right),
+					$temp$dict = left;
+				n = $temp$n;
+				dict = $temp$dict;
+				continue sizeHelp;
+			}
+		}
+	});
+var elm$core$Dict$size = function (dict) {
+	return A2(elm$core$Dict$sizeHelp, 0, dict);
+};
 var elm$core$Dict$union = F2(
 	function (t1, t2) {
 		return A3(elm$core$Dict$foldl, elm$core$Dict$insert, t2, t1);
 	});
-var elm$json$Json$Encode$object = function (pairs) {
-	return _Json_wrap(
-		A3(
-			elm$core$List$foldl,
-			F2(
-				function (_n0, obj) {
-					var k = _n0.a;
-					var v = _n0.b;
-					return A3(_Json_addField, k, v, obj);
-				}),
-			_Json_emptyObject(0),
-			pairs));
+var elm$core$Dict$values = function (dict) {
+	return A3(
+		elm$core$Dict$foldr,
+		F3(
+			function (key, value, valueList) {
+				return A2(elm$core$List$cons, value, valueList);
+			}),
+		_List_Nil,
+		dict);
 };
-var author$project$Core$dict = function (fName) {
-	switch (fName) {
-		case 'union':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Dict$union,
-						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
-						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
-		case 'intersect':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Dict$intersect,
-						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
-						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
-		case 'diff':
-			return elm$core$Maybe$Just(
-				author$project$Function$F2(
-					A3(
-						author$project$Wrap$a2,
-						elm$core$Dict$diff,
-						_Utils_Tuple2(author$project$Try$dict, author$project$Try$dict),
-						A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object))));
-		default:
-			return elm$core$Maybe$Nothing;
-	}
+var visotype$elm_eval$Eval$Encode$dict = A2(elm$core$Basics$composeR, elm$core$Dict$toList, elm$json$Json$Encode$object);
+var visotype$elm_eval$Eval$Encode$listString = elm$json$Json$Encode$list(elm$json$Json$Encode$string);
+var elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
+var elm$json$Json$Decode$dict = function (decoder) {
+	return A2(
+		elm$json$Json$Decode$map,
+		elm$core$Dict$fromList,
+		elm$json$Json$Decode$keyValuePairs(decoder));
 };
-var elm$core$List$drop = F2(
-	function (n, list) {
-		drop:
-		while (true) {
-			if (n <= 0) {
-				return list;
-			} else {
-				if (!list.b) {
-					return list;
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					var $temp$n = n - 1,
-						$temp$list = xs;
-					n = $temp$n;
-					list = $temp$list;
-					continue drop;
-				}
-			}
-		}
-	});
-var author$project$Core$get = function (expression) {
-	var parts = A2(elm$core$String$split, '.', expression);
-	var _n0 = function () {
-		var _n1 = _Utils_Tuple3(
-			elm$core$List$length(parts),
-			parts,
-			A2(elm$core$List$drop, 1, parts));
-		_n1$2:
-		while (true) {
-			if (_n1.b.b) {
-				if (!_n1.c.b) {
-					if (_n1.a === 1) {
-						var _n2 = _n1.b;
-						var first = _n2.a;
-						var rest = _n2.b;
-						return _Utils_Tuple2('Basics', first);
-					} else {
-						break _n1$2;
-					}
-				} else {
-					if ((_n1.a === 2) && (!_n1.c.b.b)) {
-						var _n3 = _n1.b;
-						var first = _n3.a;
-						var rest = _n3.b;
-						var _n4 = _n1.c;
-						var second = _n4.a;
-						return _Utils_Tuple2(first, second);
-					} else {
-						break _n1$2;
-					}
-				}
-			} else {
-				break _n1$2;
-			}
-		}
-		return _Utils_Tuple2('', '');
-	}();
-	var moduleName = _n0.a;
-	var fName = _n0.b;
-	switch (moduleName) {
-		case 'Basics':
-			return author$project$Core$basics(fName);
-		case 'Dict':
-			return author$project$Core$dict(fName);
-		default:
-			return elm$core$Maybe$Nothing;
-	}
-};
-var author$project$Try$tuple2 = function (ls) {
+var visotype$elm_eval$Eval$Try$dict = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$dict(elm$json$Json$Decode$value)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Try$List$keyValue = function (ls) {
 	var _n0 = _Utils_Tuple2(
 		ls,
 		A2(elm$core$List$drop, 1, ls));
@@ -3619,107 +6109,1393 @@ var author$project$Try$tuple2 = function (ls) {
 		var rest = _n1.b;
 		var _n2 = _n0.b;
 		var second = _n2.a;
-		return elm$core$Maybe$Just(
-			_Utils_Tuple2(first, second));
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
-var author$project$Try$tuple3 = function (ls) {
-	var _n0 = _Utils_Tuple3(
-		ls,
-		A2(elm$core$List$drop, 1, ls),
-		A2(elm$core$List$drop, 2, ls));
-	if (((_n0.a.b && _n0.b.b) && _n0.c.b) && (!_n0.c.b.b)) {
-		var _n1 = _n0.a;
-		var first = _n1.a;
-		var slice1 = _n1.b;
-		var _n2 = _n0.b;
-		var second = _n2.a;
-		var slice2 = _n2.b;
-		var _n3 = _n0.c;
-		var third = _n3.a;
-		return elm$core$Maybe$Just(
-			_Utils_Tuple3(first, second, third));
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
-var elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return elm$core$Maybe$Just(x);
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
-var elm$core$Maybe$andThen = F2(
-	function (callback, maybeValue) {
-		if (!maybeValue.$) {
-			var value = maybeValue.a;
-			return callback(value);
+		var _n3 = elm$core$Result$toMaybe(
+			A2(elm$json$Json$Decode$decodeValue, elm$json$Json$Decode$string, first));
+		if (!_n3.$) {
+			var key = _n3.a;
+			return elm$core$Maybe$Just(
+				_Utils_Tuple2(key, second));
 		} else {
 			return elm$core$Maybe$Nothing;
 		}
-	});
-var elm$core$Result$fromMaybe = F2(
-	function (err, maybe) {
-		if (!maybe.$) {
-			var v = maybe.a;
-			return elm$core$Result$Ok(v);
-		} else {
-			return elm$core$Result$Err(err);
-		}
-	});
-var author$project$Handler$exec = function (op) {
-	var _n0 = author$project$Core$get(op.d);
-	if (!_n0.$) {
-		var f = _n0.a;
-		switch (f.$) {
-			case 0:
-				var f1 = f.a;
-				return A2(
-					elm$core$Result$fromMaybe,
-					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
-					A2(
-						elm$core$Maybe$andThen,
-						f1,
-						elm$core$List$head(op.e)));
-			case 1:
-				var f2 = f.a;
-				return A2(
-					elm$core$Result$fromMaybe,
-					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
-					A2(
-						elm$core$Maybe$andThen,
-						f2,
-						author$project$Try$tuple2(op.e)));
-			default:
-				var f3 = f.a;
-				return A2(
-					elm$core$Result$fromMaybe,
-					'Failed at coercing JavaScript input values to the expected ' + ('parameter types for the Elm function ' + op.d),
-					A2(
-						elm$core$Maybe$andThen,
-						f3,
-						author$project$Try$tuple3(op.e)));
-		}
 	} else {
-		return elm$core$Result$Err('Specified Elm function was not found. Some core module functions ' + 'are not available through this interface.');
+		return elm$core$Maybe$Nothing;
 	}
 };
-var elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (!maybe.$) {
-			var value = maybe.a;
-			return value;
+var visotype$elm_eval$Eval$Try$listKeyValue = function () {
+	var resolveMaybes = function (ls) {
+		var _n0 = A2(elm$core$List$member, elm$core$Maybe$Nothing, ls);
+		if (_n0) {
+			return elm$core$Maybe$Nothing;
 		} else {
-			return _default;
+			return elm$core$Maybe$Just(
+				A2(
+					elm$core$List$map,
+					elm$core$Maybe$withDefault(
+						_Utils_Tuple2('', elm$json$Json$Encode$null)),
+					ls));
 		}
+	};
+	return A2(
+		elm$core$Basics$composeR,
+		visotype$elm_eval$Eval$Try$listList,
+		A2(
+			elm$core$Basics$composeR,
+			elm$core$Maybe$map(
+				elm$core$List$map(visotype$elm_eval$Eval$Try$List$keyValue)),
+			elm$core$Maybe$andThen(resolveMaybes)));
+}();
+var visotype$elm_eval$Eval$Core$Dict$lib = function (fName) {
+	var getter = F4(
+		function (decoder, encoder, valueType, _n5) {
+			var a = _n5.a;
+			var b = _n5.b;
+			var _n2 = _Utils_Tuple2(
+				visotype$elm_eval$Eval$Try$string(a),
+				visotype$elm_eval$Eval$Try$dict(b));
+			if ((!_n2.a.$) && (!_n2.b.$)) {
+				var key = _n2.a.a;
+				var dict = _n2.b.a;
+				var _n3 = A2(elm$core$Dict$get, key, dict);
+				if (!_n3.$) {
+					var value = _n3.a;
+					var _n4 = decoder(value);
+					if (!_n4.$) {
+						var decodedValue = _n4.a;
+						return elm$core$Result$Ok(
+							encoder(decodedValue));
+					} else {
+						return elm$core$Result$Err(
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, object(' + (valueType + ')]')));
+					}
+				} else {
+					return elm$core$Result$Err('The object passed to this function doesn\'t contain the key \'' + (key + '\'.'));
+				}
+			} else {
+				return elm$core$Result$Err(
+					A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, object]'));
+			}
+		});
+	switch (fName) {
+		case 'empty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F0(
+					A2(
+						visotype$elm_eval$Eval$Wrap$a0,
+						function (_n1) {
+							return elm$core$Dict$empty;
+						},
+						visotype$elm_eval$Eval$Encode$dict)));
+		case 'singleton':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$singleton,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, elm$core$Maybe$Just),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, any]'))));
+		case 'insert':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$Dict$insert,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$string, elm$core$Maybe$Just, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, any, object]'))));
+		case 'update':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'remove':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$remove,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, object]'))));
+		case 'isEmpty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$isEmpty,
+						visotype$elm_eval$Eval$Try$dict,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object]'))));
+		case 'member':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$member,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, object]'))));
+		case 'get':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, elm$core$Maybe$Just, visotype$elm_eval$Eval$Encode$value, 'any')));
+		case 'get.string':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Encode$string, 'string')));
+		case 'get.char':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Encode$char, 'string-1')));
+		case 'get.int':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Encode$int, 'integer')));
+		case 'get.float':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Encode$float, 'number')));
+		case 'get.bool':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$bool, visotype$elm_eval$Eval$Encode$bool, 'boolean')));
+		case 'get.list':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$list, visotype$elm_eval$Eval$Encode$list, 'array')));
+		case 'get.array':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$array, visotype$elm_eval$Eval$Encode$array, 'array')));
+		case 'get.dict':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A3(getter, visotype$elm_eval$Eval$Try$dict, visotype$elm_eval$Eval$Encode$dict, 'object')));
+		case 'size':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$size,
+						visotype$elm_eval$Eval$Try$dict,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object]'))));
+		case 'keys':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$keys,
+						visotype$elm_eval$Eval$Try$dict,
+						visotype$elm_eval$Eval$Encode$listString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object]'))));
+		case 'values':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$values,
+						visotype$elm_eval$Eval$Try$dict,
+						visotype$elm_eval$Eval$Encode$list,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object]'))));
+		case 'toList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$toList,
+						visotype$elm_eval$Eval$Try$dict,
+						visotype$elm_eval$Eval$Encode$listTuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$string, visotype$elm_eval$Eval$Encode$value)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object]'))));
+		case 'fromList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Dict$fromList,
+						visotype$elm_eval$Eval$Try$listKeyValue,
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(array-2)]'))));
+		case 'map':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldl':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldr':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'filter':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'partition':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'union':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$union,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$dict, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object, object]'))));
+		case 'intersect':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$intersect,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$dict, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object, object]'))));
+		case 'diff':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Dict$diff,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$dict, visotype$elm_eval$Eval$Try$dict),
+						visotype$elm_eval$Eval$Encode$dict,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[object, object]'))));
+		case 'merge':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Dict', fName));
+	}
+};
+var elm$core$Set$Set_elm_builtin = elm$core$Basics$identity;
+var elm$core$Set$diff = F2(
+	function (_n0, _n1) {
+		var dict1 = _n0;
+		var dict2 = _n1;
+		return A2(elm$core$Dict$diff, dict1, dict2);
 	});
-var elm$json$Json$Decode$list = _Json_decodeList;
-var author$project$Resolve$list = A2(
+var elm$core$Set$empty = elm$core$Dict$empty;
+var elm$core$Set$insert = F2(
+	function (key, _n0) {
+		var dict = _n0;
+		return A3(elm$core$Dict$insert, key, 0, dict);
+	});
+var elm$core$Set$intersect = F2(
+	function (_n0, _n1) {
+		var dict1 = _n0;
+		var dict2 = _n1;
+		return A2(elm$core$Dict$intersect, dict1, dict2);
+	});
+var elm$core$Set$member = F2(
+	function (key, _n0) {
+		var dict = _n0;
+		return A2(elm$core$Dict$member, key, dict);
+	});
+var elm$core$Set$remove = F2(
+	function (key, _n0) {
+		var dict = _n0;
+		return A2(elm$core$Dict$remove, key, dict);
+	});
+var elm$core$Set$singleton = function (key) {
+	return A2(elm$core$Dict$singleton, key, 0);
+};
+var elm$core$Set$size = function (_n0) {
+	var dict = _n0;
+	return elm$core$Dict$size(dict);
+};
+var elm$core$Set$union = F2(
+	function (_n0, _n1) {
+		var dict1 = _n0;
+		var dict2 = _n1;
+		return A2(elm$core$Dict$union, dict1, dict2);
+	});
+var elm$core$Set$foldl = F3(
+	function (func, initialState, _n0) {
+		var dict = _n0;
+		return A3(
+			elm$core$Dict$foldl,
+			F3(
+				function (key, _n1, state) {
+					return A2(func, key, state);
+				}),
+			initialState,
+			dict);
+	});
+var elm$json$Json$Encode$set = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				elm$core$Set$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(0),
+				entries));
+	});
+var visotype$elm_eval$Eval$Encode$setChar = elm$json$Json$Encode$set(
+	A2(elm$core$Basics$composeR, elm$core$String$fromChar, elm$json$Json$Encode$string));
+var visotype$elm_eval$Eval$Encode$setFloat = elm$json$Json$Encode$set(elm$json$Json$Encode$float);
+var visotype$elm_eval$Eval$Encode$setInt = elm$json$Json$Encode$set(elm$json$Json$Encode$int);
+var visotype$elm_eval$Eval$Encode$setString = elm$json$Json$Encode$set(elm$json$Json$Encode$string);
+var elm$core$Set$fromList = function (list) {
+	return A3(elm$core$List$foldl, elm$core$Set$insert, elm$core$Set$empty, list);
+};
+var visotype$elm_eval$Eval$Try$setChar = A2(
+	elm$core$Basics$composeR,
+	visotype$elm_eval$Eval$Try$listChar,
+	elm$core$Maybe$map(elm$core$Set$fromList));
+var visotype$elm_eval$Eval$Try$setFloat = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$float)),
+	A2(
+		elm$core$Basics$composeR,
+		elm$core$Result$toMaybe,
+		elm$core$Maybe$map(elm$core$Set$fromList)));
+var visotype$elm_eval$Eval$Try$setInt = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$int)),
+	A2(
+		elm$core$Basics$composeR,
+		elm$core$Result$toMaybe,
+		elm$core$Maybe$map(elm$core$Set$fromList)));
+var visotype$elm_eval$Eval$Try$setString = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$string)),
+	A2(
+		elm$core$Basics$composeR,
+		elm$core$Result$toMaybe,
+		elm$core$Maybe$map(elm$core$Set$fromList)));
+var visotype$elm_eval$Eval$Core$Set$lib = function (fName) {
+	lib:
+	while (true) {
+		switch (fName) {
+			case 'empty':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F0(
+						A2(
+							visotype$elm_eval$Eval$Wrap$a0,
+							function (_n1) {
+								return elm$core$Set$empty;
+							},
+							A2(elm$core$Basics$composeR, elm$core$Set$toList, visotype$elm_eval$Eval$Encode$list))));
+			case 'singleton':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'singleton.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$singleton,
+							visotype$elm_eval$Eval$Try$string,
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+			case 'singleton.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$singleton,
+							visotype$elm_eval$Eval$Try$char,
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+			case 'singleton.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$singleton,
+							visotype$elm_eval$Eval$Try$int,
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer]'))));
+			case 'singleton.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$singleton,
+							visotype$elm_eval$Eval$Try$float,
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+			case 'insert':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'insert.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$insert,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, array(string)]'))));
+			case 'insert.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$insert,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1, array(string-1)]'))));
+			case 'insert.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$insert,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array(integer)]'))));
+			case 'insert.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$insert,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[float, array(number)]'))));
+			case 'remove':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'remove.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$remove,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, array(string)]'))));
+			case 'remove.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$remove,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1, array(string-1)]'))));
+			case 'remove.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$remove,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array(integer)]'))));
+			case 'remove.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$remove,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[float, array(number)]'))));
+			case 'isEmpty':
+				return visotype$elm_eval$Eval$Core$List$lib(fName);
+			case 'member':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'member.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$member,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$bool,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, array(string)]'))));
+			case 'member.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$member,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$bool,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1, array(string-1)]'))));
+			case 'member.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$member,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$bool,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, array(integer)]'))));
+			case 'member.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$member,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$float, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$bool,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[float, array(number)]'))));
+			case 'size':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'size.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$size,
+							visotype$elm_eval$Eval$Try$setString,
+							visotype$elm_eval$Eval$Encode$int,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, 'array(string)]'))));
+			case 'size.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$size,
+							visotype$elm_eval$Eval$Try$setChar,
+							visotype$elm_eval$Eval$Encode$int,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1)]'))));
+			case 'size.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$size,
+							visotype$elm_eval$Eval$Try$setInt,
+							visotype$elm_eval$Eval$Encode$int,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer)]'))));
+			case 'size.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Set$size,
+							visotype$elm_eval$Eval$Try$setFloat,
+							visotype$elm_eval$Eval$Encode$int,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number)]'))));
+			case 'union':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'union.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$union,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setString, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string), array(string)]'))));
+			case 'union.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$union,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setChar, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1), array(string-1)]'))));
+			case 'union.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$union,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setInt, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer), array(integer)]'))));
+			case 'union.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$union,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setFloat, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number), array(number)]'))));
+			case 'intersect':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'intersect.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$intersect,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setString, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string), array(string)]'))));
+			case 'intersect.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$intersect,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setChar, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1), array(string-1)]'))));
+			case 'intersect.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$intersect,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setInt, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer), array(integer)]'))));
+			case 'intersect.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$intersect,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setFloat, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number), array(number)]'))));
+			case 'diff':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'diff.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$diff,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setString, visotype$elm_eval$Eval$Try$setString),
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string), array(string)]'))));
+			case 'diff.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$diff,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setChar, visotype$elm_eval$Eval$Try$setChar),
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1), array(string-1)]'))));
+			case 'diff.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$diff,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setInt, visotype$elm_eval$Eval$Try$setInt),
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer), array(integer)]'))));
+			case 'diff.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F2(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a2,
+							elm$core$Set$diff,
+							_Utils_Tuple2(visotype$elm_eval$Eval$Try$setFloat, visotype$elm_eval$Eval$Try$setFloat),
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number), array(number)]'))));
+			case 'toList':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'toList.string':
+				var $temp$fName = 'fromList.string';
+				fName = $temp$fName;
+				continue lib;
+			case 'toList.char':
+				var $temp$fName = 'fromList.char';
+				fName = $temp$fName;
+				continue lib;
+			case 'toList.int':
+				var $temp$fName = 'fromList.int';
+				fName = $temp$fName;
+				continue lib;
+			case 'toList.float':
+				var $temp$fName = 'fromList.float';
+				fName = $temp$fName;
+				continue lib;
+			case 'fromList':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noCompare(fName));
+			case 'fromList.string':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Basics$identity,
+							visotype$elm_eval$Eval$Try$setString,
+							visotype$elm_eval$Eval$Encode$setString,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string)]'))));
+			case 'fromList.char':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Basics$identity,
+							visotype$elm_eval$Eval$Try$setChar,
+							visotype$elm_eval$Eval$Encode$setChar,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1)]'))));
+			case 'fromList.int':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Basics$identity,
+							visotype$elm_eval$Eval$Try$setInt,
+							visotype$elm_eval$Eval$Encode$setInt,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(integer)]'))));
+			case 'fromList.float':
+				return elm$core$Result$Ok(
+					visotype$elm_eval$Eval$Function$F1(
+						A4(
+							visotype$elm_eval$Eval$Wrap$a1,
+							elm$core$Basics$identity,
+							visotype$elm_eval$Eval$Try$setFloat,
+							visotype$elm_eval$Eval$Encode$setFloat,
+							A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(number)]'))));
+			case 'map':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+			case 'foldl':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+			case 'foldr':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+			case 'filter':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+			case 'partition':
+				return elm$core$Result$Err(
+					visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+			default:
+				return elm$core$Result$Err(
+					A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Set', fName));
+		}
+	}
+};
+var elm$core$String$append = _String_append;
+var elm$core$String$concat = function (strings) {
+	return A2(elm$core$String$join, '', strings);
+};
+var elm$core$String$contains = _String_contains;
+var elm$core$String$length = _String_length;
+var elm$core$String$slice = _String_slice;
+var elm$core$String$dropLeft = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(
+			elm$core$String$slice,
+			n,
+			elm$core$String$length(string),
+			string);
+	});
+var elm$core$String$dropRight = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(elm$core$String$slice, 0, -n, string);
+	});
+var elm$core$String$endsWith = _String_endsWith;
+var elm$core$String$fromFloat = _String_fromNumber;
+var elm$core$String$fromList = _String_fromList;
+var elm$core$String$indexes = _String_indexes;
+var elm$core$String$indices = _String_indexes;
+var elm$core$String$isEmpty = function (string) {
+	return string === '';
+};
+var elm$core$String$left = F2(
+	function (n, string) {
+		return (n < 1) ? '' : A3(elm$core$String$slice, 0, n, string);
+	});
+var elm$core$String$lines = _String_lines;
+var elm$core$String$repeatHelp = F3(
+	function (n, chunk, result) {
+		return (n <= 0) ? result : A3(
+			elm$core$String$repeatHelp,
+			n >> 1,
+			_Utils_ap(chunk, chunk),
+			(!(n & 1)) ? result : _Utils_ap(result, chunk));
+	});
+var elm$core$String$repeat = F2(
+	function (n, chunk) {
+		return A3(elm$core$String$repeatHelp, n, chunk, '');
+	});
+var elm$core$String$pad = F3(
+	function (n, _char, string) {
+		var half = (n - elm$core$String$length(string)) / 2;
+		return _Utils_ap(
+			A2(
+				elm$core$String$repeat,
+				elm$core$Basics$ceiling(half),
+				elm$core$String$fromChar(_char)),
+			_Utils_ap(
+				string,
+				A2(
+					elm$core$String$repeat,
+					elm$core$Basics$floor(half),
+					elm$core$String$fromChar(_char))));
+	});
+var elm$core$String$padLeft = F3(
+	function (n, _char, string) {
+		return _Utils_ap(
+			A2(
+				elm$core$String$repeat,
+				n - elm$core$String$length(string),
+				elm$core$String$fromChar(_char)),
+			string);
+	});
+var elm$core$String$padRight = F3(
+	function (n, _char, string) {
+		return _Utils_ap(
+			string,
+			A2(
+				elm$core$String$repeat,
+				n - elm$core$String$length(string),
+				elm$core$String$fromChar(_char)));
+	});
+var elm$core$String$replace = F3(
+	function (before, after, string) {
+		return A2(
+			elm$core$String$join,
+			after,
+			A2(elm$core$String$split, before, string));
+	});
+var elm$core$String$reverse = _String_reverse;
+var elm$core$String$right = F2(
+	function (n, string) {
+		return (n < 1) ? '' : A3(
+			elm$core$String$slice,
+			-n,
+			elm$core$String$length(string),
+			string);
+	});
+var elm$core$String$startsWith = _String_startsWith;
+var elm$core$String$toFloat = _String_toFloat;
+var elm$core$String$toInt = _String_toInt;
+var elm$core$String$toLower = _String_toLower;
+var elm$core$String$toUpper = _String_toUpper;
+var elm$core$String$trim = _String_trim;
+var elm$core$String$trimLeft = _String_trimLeft;
+var elm$core$String$trimRight = _String_trimRight;
+var elm$core$String$words = _String_words;
+var visotype$elm_eval$Eval$Encode$listChar = elm$json$Json$Encode$list(
+	A2(elm$core$Basics$composeR, elm$core$String$fromChar, elm$json$Json$Encode$string));
+var visotype$elm_eval$Eval$Try$listString = A2(
+	elm$core$Basics$composeR,
+	elm$json$Json$Decode$decodeValue(
+		elm$json$Json$Decode$list(elm$json$Json$Decode$string)),
+	elm$core$Result$toMaybe);
+var visotype$elm_eval$Eval$Core$String$lib = function (fName) {
+	switch (fName) {
+		case 'isEmpty':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$isEmpty,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'length':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$length,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$int,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'reverse':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$reverse,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'repeat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$repeat,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string]'))));
+		case 'replace':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$String$replace,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string, string]'))));
+		case 'append':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$append,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'concat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$concat,
+						visotype$elm_eval$Eval$Try$listString,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string)]'))));
+		case 'split':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$split,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$listString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'join':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$join,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$listString),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, array(string)]'))));
+		case 'words':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$words,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$listString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'lines':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$lines,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$listString,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'slice':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$String$slice,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, integer, string]'))));
+		case 'left':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$left,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string]'))));
+		case 'right':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$right,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string]'))));
+		case 'dropLeft':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$dropLeft,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string]'))));
+		case 'dropRight':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$dropRight,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string]'))));
+		case 'contains':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$contains,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'startsWith':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$startsWith,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'endsWith':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$endsWith,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$bool,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'indexes':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$indexes,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$listInt,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'indices':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$indices,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$string, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$listInt,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string, string]'))));
+		case 'toInt':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (value) {
+						var _n1 = visotype$elm_eval$Eval$Try$string(value);
+						if (!_n1.$) {
+							var string = _n1.a;
+							var _n2 = elm$core$String$toInt(string);
+							if (!_n2.$) {
+								var integer = _n2.a;
+								return elm$core$Result$Ok(
+									visotype$elm_eval$Eval$Encode$int(integer));
+							} else {
+								return elm$core$Result$Err('Failed to parse the string argument as an integer value.');
+							}
+						} else {
+							return elm$core$Result$Err(
+								A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'));
+						}
+					}));
+		case 'fromInt':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$fromInt,
+						visotype$elm_eval$Eval$Try$int,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer]'))));
+		case 'toFloat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (value) {
+						var _n3 = visotype$elm_eval$Eval$Try$string(value);
+						if (!_n3.$) {
+							var string = _n3.a;
+							var _n4 = elm$core$String$toFloat(string);
+							if (!_n4.$) {
+								var number = _n4.a;
+								return elm$core$Result$Ok(
+									visotype$elm_eval$Eval$Encode$float(number));
+							} else {
+								return elm$core$Result$Err('Failed to parse the string argument as an numeric value.');
+							}
+						} else {
+							return elm$core$Result$Err(
+								A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'));
+						}
+					}));
+		case 'fromFloat':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$fromFloat,
+						visotype$elm_eval$Eval$Try$float,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[number]'))));
+		case 'fromChar':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$fromChar,
+						visotype$elm_eval$Eval$Try$char,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1]'))));
+		case 'cons':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$String$cons,
+						_Utils_Tuple2(visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string-1, string]'))));
+		case 'uncons':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					function (value) {
+						var _n5 = visotype$elm_eval$Eval$Try$string(value);
+						if (!_n5.$) {
+							var string = _n5.a;
+							var _n6 = elm$core$String$uncons(string);
+							if (!_n6.$) {
+								var tuple = _n6.a;
+								return elm$core$Result$Ok(
+									A2(
+										visotype$elm_eval$Eval$Encode$tuple2,
+										_Utils_Tuple2(visotype$elm_eval$Eval$Encode$char, visotype$elm_eval$Eval$Encode$string),
+										tuple));
+							} else {
+								return elm$core$Result$Err('Can\'t partition an empty string.');
+							}
+						} else {
+							return elm$core$Result$Err(
+								A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'));
+						}
+					}));
+		case 'toList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$toList,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$listChar,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'fromList':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$fromList,
+						visotype$elm_eval$Eval$Try$listChar,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array(string-1)]'))));
+		case 'toUpper':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$toUpper,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'toLower':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$toLower,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'pad':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$String$pad,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string-1, string]'))));
+		case 'padLeft':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$String$padLeft,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string-1, string]'))));
+		case 'padRight':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F3(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a3,
+						elm$core$String$padRight,
+						_Utils_Tuple3(visotype$elm_eval$Eval$Try$int, visotype$elm_eval$Eval$Try$char, visotype$elm_eval$Eval$Try$string),
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[integer, string-1, string]'))));
+		case 'trim':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$trim,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'trimLeft':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$trimLeft,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'trimRight':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$String$trimRight,
+						visotype$elm_eval$Eval$Try$string,
+						visotype$elm_eval$Eval$Encode$string,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[string]'))));
+		case 'map':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'filter':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldl':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'foldr':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'any':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'all':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'String', fName));
+	}
+};
+var elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
+	});
+var visotype$elm_eval$Eval$Try$tuple2 = A2(
+	elm$core$Basics$composeR,
+	visotype$elm_eval$Eval$Try$list,
+	elm$core$Maybe$andThen(visotype$elm_eval$Eval$Try$List$tuple2));
+var visotype$elm_eval$Eval$Core$Tuple$lib = function (fName) {
+	switch (fName) {
+		case 'pair':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F2(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a2,
+						elm$core$Tuple$pair,
+						_Utils_Tuple2(elm$core$Maybe$Just, elm$core$Maybe$Just),
+						visotype$elm_eval$Eval$Encode$tuple2(
+							_Utils_Tuple2(visotype$elm_eval$Eval$Encode$value, visotype$elm_eval$Eval$Encode$value)),
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[any, any]'))));
+		case 'first':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Tuple$first,
+						visotype$elm_eval$Eval$Try$tuple2,
+						visotype$elm_eval$Eval$Encode$value,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array-2]'))));
+		case 'second':
+			return elm$core$Result$Ok(
+				visotype$elm_eval$Eval$Function$F1(
+					A4(
+						visotype$elm_eval$Eval$Wrap$a1,
+						elm$core$Tuple$second,
+						visotype$elm_eval$Eval$Try$tuple2,
+						visotype$elm_eval$Eval$Encode$value,
+						A2(visotype$elm_eval$Eval$Core$Error$expected, fName, '[array-2]'))));
+		case 'mapFirst':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'mapSecond':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		case 'mapBoth':
+			return elm$core$Result$Err(
+				visotype$elm_eval$Eval$Core$Error$noFunction(fName));
+		default:
+			return elm$core$Result$Err(
+				A2(visotype$elm_eval$Eval$Core$Error$notFound, 'Tuple', fName));
+	}
+};
+var visotype$elm_eval$Eval$Core$lib = function (expression) {
+	var parts = A2(elm$core$String$split, '.', expression);
+	var _n0 = function () {
+		if (!parts.b) {
+			return _Utils_Tuple2('Basics', '');
+		} else {
+			if (!parts.b.b) {
+				var first = parts.a;
+				return _Utils_Tuple2('Basics', first);
+			} else {
+				var first = parts.a;
+				var rest = parts.b;
+				return _Utils_Tuple2(
+					first,
+					A2(elm$core$String$join, '.', rest));
+			}
+		}
+	}();
+	var moduleName = _n0.a;
+	var fName = _n0.b;
+	switch (moduleName) {
+		case 'Array':
+			return visotype$elm_eval$Eval$Core$Array$lib(fName);
+		case 'Basics':
+			return visotype$elm_eval$Eval$Core$Basics$lib(fName);
+		case 'Bitwise':
+			return visotype$elm_eval$Eval$Core$Bitwise$lib(fName);
+		case 'Char':
+			return visotype$elm_eval$Eval$Core$Char$lib(fName);
+		case 'Debug':
+			return elm$core$Result$Err('The Debug module is not available through this interface.');
+		case 'Dict':
+			return visotype$elm_eval$Eval$Core$Dict$lib(fName);
+		case 'List':
+			return visotype$elm_eval$Eval$Core$List$lib(fName);
+		case 'Maybe':
+			return elm$core$Result$Err('The Maybe module is not available through this interface.');
+		case 'Platform':
+			return elm$core$Result$Err('The Platform module is not available through this interface.');
+		case 'Platform.Cmd':
+			return elm$core$Result$Err('The Platform.Cmd module is not available through this interface.');
+		case 'Platform.Sub':
+			return elm$core$Result$Err('The Platform.Sub module is not available through this interface.');
+		case 'Process':
+			return elm$core$Result$Err('The Process module is not available through this interface.');
+		case 'Result':
+			return elm$core$Result$Err('The Result module is not available through this interface.');
+		case 'Set':
+			return visotype$elm_eval$Eval$Core$Set$lib(fName);
+		case 'String':
+			return visotype$elm_eval$Eval$Core$String$lib(fName);
+		case 'Task':
+			return elm$core$Result$Err('The Task module is not available through this interface.');
+		case 'Tuple':
+			return visotype$elm_eval$Eval$Core$Tuple$lib(fName);
+		default:
+			return elm$core$Result$Err('A module named `' + (moduleName + ('` was not found in Elm\'s core libraries. ' + ('Note that Elm module names are always capitalized and that ' + ('module and function names should be separated by a single `.` ' + '(example: `String.length`).')))));
+	}
+};
+var visotype$elm_eval$Eval$coreLib = visotype$elm_eval$Eval$Core$lib;
+var visotype$elm_eval$Eval$Resolve$list = A2(
 	elm$core$Basics$composeR,
 	elm$core$Maybe$andThen(
 		A2(
@@ -3728,8 +7504,7 @@ var author$project$Resolve$list = A2(
 				elm$json$Json$Decode$list(elm$json$Json$Decode$value)),
 			elm$core$Result$toMaybe)),
 	elm$core$Maybe$withDefault(_List_Nil));
-var elm$json$Json$Decode$string = _Json_decodeString;
-var author$project$Resolve$string = A2(
+var visotype$elm_eval$Eval$Resolve$string = A2(
 	elm$core$Basics$composeR,
 	elm$core$Maybe$andThen(
 		A2(
@@ -3738,104 +7513,47 @@ var author$project$Resolve$string = A2(
 			elm$core$Result$toMaybe)),
 	elm$core$Maybe$withDefault(''));
 var elm$json$Json$Decode$field = _Json_decodeField;
-var author$project$Try$field = function (key) {
+var visotype$elm_eval$Eval$Try$field = function (key) {
 	return A2(
 		elm$core$Basics$composeR,
 		elm$json$Json$Decode$decodeValue(
 			A2(elm$json$Json$Decode$field, key, elm$json$Json$Decode$value)),
 		elm$core$Result$toMaybe);
 };
-var author$project$Handler$parse = function (object) {
+var visotype$elm_eval$Eval$Call$parse = function (object) {
 	return {
-		e: author$project$Resolve$list(
-			A2(author$project$Try$field, 'args', object)),
-		d: author$project$Resolve$string(
-			A2(author$project$Try$field, 'f', object))
+		g: visotype$elm_eval$Eval$Resolve$list(
+			A2(visotype$elm_eval$Eval$Try$field, 'args', object)),
+		h: visotype$elm_eval$Eval$Resolve$string(
+			A2(visotype$elm_eval$Eval$Try$field, 'f', object))
 	};
 };
-var elm$json$Json$Encode$bool = _Json_wrap;
-var elm$json$Json$Encode$null = _Json_encodeNull;
-var elm$json$Json$Encode$string = _Json_wrap;
-var author$project$Handler$returnMessage = function (result) {
-	if (!result.$) {
-		var value = result.a;
-		return elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2('value', value),
-					_Utils_Tuple2(
-					'resolve',
-					elm$json$Json$Encode$bool(true)),
-					_Utils_Tuple2('error', elm$json$Json$Encode$null)
-				]));
-	} else {
-		var message = result.a;
-		return elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2('value', elm$json$Json$Encode$null),
-					_Utils_Tuple2(
-					'resolve',
-					elm$json$Json$Encode$bool(false)),
-					_Utils_Tuple2(
-					'error',
-					elm$json$Json$Encode$string(message))
-				]));
-	}
-};
-var elm$core$Basics$identity = function (x) {
-	return x;
-};
-var author$project$Ports$outgoing = _Platform_outgoingPort('outgoing', elm$core$Basics$identity);
-var elm$core$Platform$Cmd$batch = _Platform_batch;
-var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
-var elm$core$Tuple$mapSecond = F2(
-	function (func, _n0) {
-		var x = _n0.a;
-		var y = _n0.b;
-		return _Utils_Tuple2(
-			x,
-			func(y));
-	});
-var author$project$Update$update = F2(
-	function (msg, previous) {
-		switch (msg.$) {
-			case 0:
-				var object = msg.a;
-				return A2(
-					elm$core$Tuple$mapSecond,
-					A2(elm$core$Basics$composeR, author$project$Handler$returnMessage, author$project$Ports$outgoing),
-					function (result) {
-						return _Utils_Tuple2(previous, result);
-					}(
-						author$project$Handler$exec(
-							author$project$Handler$parse(object))));
-			case 1:
-				var object = msg.a;
-				return _Utils_Tuple2(previous, elm$core$Platform$Cmd$none);
-			default:
-				var object = msg.a;
-				return _Utils_Tuple2(previous, elm$core$Platform$Cmd$none);
-		}
-	});
-var elm$core$Platform$worker = _Platform_worker;
-var elm$core$Platform$Sub$batch = _Platform_batch;
+var visotype$elm_eval$Eval$parse = visotype$elm_eval$Eval$Call$parse;
 var author$project$Main$main = elm$core$Platform$worker(
 	{
-		o: function (object) {
-			return _Utils_Tuple2(
-				author$project$Model$fromJson(object),
-				elm$core$Platform$Cmd$none);
+		i: function (_n0) {
+			return _Utils_Tuple2(elm$core$Maybe$Nothing, elm$core$Platform$Cmd$none);
 		},
-		p: function (model) {
+		j: function (_n1) {
 			return elm$core$Platform$Sub$batch(
-				_List_fromArray(
-					[
-						author$project$Ports$eval(author$project$Msg$Eval),
-						author$project$Ports$updateModel(author$project$Msg$UpdateModel),
-						author$project$Ports$updateKey(author$project$Msg$UpdateKey)
-					]));
+				elm$core$List$singleton(
+					author$project$Main$incoming(elm$core$Basics$identity)));
 		},
-		q: author$project$Update$update
+		k: F2(
+			function (_n2, _n3) {
+				var object = _n2;
+				return A3(
+					elm$core$Tuple$mapBoth,
+					elm$core$Maybe$Just,
+					A2(
+						elm$core$Basics$composeR,
+						visotype$elm_eval$Eval$call(visotype$elm_eval$Eval$coreLib),
+						A2(elm$core$Basics$composeR, author$project$Main$encodeResult, author$project$Main$outgoing)),
+					function (r) {
+						return _Utils_Tuple2(r, r);
+					}(
+						visotype$elm_eval$Eval$parse(object)));
+			})
 	});
-_Platform_export({'Main':{'init':author$project$Main$main(elm$json$Json$Decode$value)(0)}});}(this));
+_Platform_export({'Main':{'init':author$project$Main$main(
+	elm$json$Json$Decode$succeed(0))(0)}});}(this));

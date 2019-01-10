@@ -1,8 +1,11 @@
 import test from 'ava';
-import run from './index';
+import program from './index';
 
-test('this', (t) => {
-  const program = run({ x: 1 });
 
-  t.truthy(program);
+test('getModel', async (t) => {
+  const initial = { a: 1, b: [2, 3], c: { x: 'hello', y: 'world' } };
+  const { getModel } = program(initial);
+  const model = await getModel();
+
+  t.deepEqual(model, initial);
 });

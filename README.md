@@ -1,5 +1,5 @@
-# danielnarey/elm-state-machine
+# visotype/elm-state-machine [![Build Status](https://travis-ci.com/visotype/elm-state-machine.svg?branch=master)](https://travis-ci.com/visotype/elm-state-machine)
 
-Use Elm as a state container in a JS/Node app
+**Use an Elm program as a state container for a JS/Node application (experimental)**
 
-**Experimental: Not complete**
+NOT COMPLETE

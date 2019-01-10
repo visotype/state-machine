@@ -1,61 +1,54 @@
 const { Main } = require('./main.js').Elm;
 
-const isObject = (x = null) => {
-  if (x === null) {
-    return false;
-  }
 
-  return (x.constructor === Object);
-};
+const getModel = program => () => new Promise((resolve, reject) => {
+  program.ports.outgoing.subscribe(m => (
+    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
+  ));
+  program.ports.getModel.send();
+});
 
-module.exports = (flags = {}) => {
-  if (!isObject(flags)) {
-    throw new Error([
-      'Initial model passed to Elm must be an object.',
-      'Assuming you\'re importing this module as `elmStateMachine`,',
-      'instead of `elmStateMachine(0)`, try `elmStateMachine({ value: 0 })``',
-    ].join(' '));
-  }
 
-  const program = Main.init({ flags });
+const getKey = program => key => new Promise((resolve, reject) => {
+  program.ports.outgoing.subscribe(m => (
+    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
+  ));
+  program.ports.getKey.send(key);
+});
+
+
+const updateKey = program => (key, f, ...args) => new Promise((resolve, reject) => {
+  program.ports.outgoing.subscribe(m => (
+    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
+  ));
+  program.ports.updateKey.send({
+    key,
+    f,
+    args,
+  });
+});
+
+
+module.exports = async (initial) => {
+  const isObject = (x = null) => {
+    if (x === null) {
+      return false;
+    }
+
+    return (x.constructor === Object);
+  };
+
+  const program = await new Promise((resolve, reject) => {
+    if (isObject(initial)) {
+      resolve(Main.init(initial));
+    } else {
+      reject(new TypeError('Initial model passed to Elm must be an object.'));
+    }
+  });
 
   return {
-    eval: (f, ...args) => new Promise((resolve, reject) => {
-      program.ports.outgoing.subscribe(m => (
-        m.resolve ? resolve(m.value) : reject(m.error)
-      ));
-      program.ports.eval.send({
-        f,
-        args,
-      });
-    }),
-    partial: (f, ...args) => data => new Promise((resolve, reject) => {
-      program.ports.outgoing.subscribe(m => (
-        m.resolve ? resolve(m.value) : reject(m.error)
-      ));
-      program.ports.eval.send({
-        f,
-        args: [data].concat(args),
-      });
-    }),
-    updateModel: (data, f = 'Dict.union', ...args) => new Promise((resolve, reject) => {
-      program.ports.outgoing.subscribe(m => (
-        m.resolve ? resolve(m.value) : reject(m.error)
-      ));
-      program.ports.updateModel.send({
-        f,
-        args: [data].concat(args),
-      });
-    }),
-    updateKey: (key, f, ...args) => new Promise((resolve, reject) => {
-      program.ports.outgoing.subscribe(m => (
-        m.resolve ? resolve(m.value) : reject(m.error)
-      ));
-      program.ports.updateKey.send({
-        key,
-        f,
-        args,
-      });
-    }),
+    getModel: getModel(program),
+    getKey: getKey(program),
+    updateKey: updateKey(program),
   };
 };
