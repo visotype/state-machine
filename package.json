@@ -5,7 +5,9 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "build": "npx elm make src/Main.elm --output=main.js --optimize && npx uglifyjs main.js -o main.js --compress --mangle",
+    "compile": "npx elm make src/Main.elm --output=main.js --optimize",
+    "build": "npm run compile && npm run minify",
+    "minify": "npx uglifyjs main.js --compress 'pure_funcs=\"F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9\",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | npx uglifyjs --mangle --output=main.js",
     "sync": "git add . && git commit -m 'automated sync' && git push",
     "test": "eslint '**/*.js' && ava"
   },
