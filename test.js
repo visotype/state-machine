@@ -32,5 +32,5 @@ test('await chain', async (t) => {
   t.deepEqual(model1, Object.assign(initial, { a: 2 }));
   t.is(a2, 3);
   t.deepEqual(model2, Object.assign(initial, { a: 3 }));
-  t.deepEqual(model3, Object.assign(initial, { a: 3, c: { x: 'hello', y: 'universe' } }));
+  t.deepEqual(model3, { a: 3, b: [2, 3], c: { x: 'hello', y: 'universe' } });
 });
