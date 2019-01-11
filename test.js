@@ -25,6 +25,9 @@ test('await chain', async (t) => {
   await updateKey(program, 'c', 'Dict.union', { y: 'universe' });
   const model3 = await getModel(program);
 
+  await updateKey(program, 'a', 'String.fromFloat');
+  const a3 = await getKey(program, 'a');
+
 
   t.deepEqual(model0, initial);
   t.is(a0, 1);
@@ -33,4 +36,5 @@ test('await chain', async (t) => {
   t.is(a2, 3);
   t.deepEqual(model2, Object.assign(initial, { a: 3 }));
   t.deepEqual(model3, { a: 3, b: [2, 3], c: { x: 'hello', y: 'universe' } });
+  t.is(a3, '3');
 });
