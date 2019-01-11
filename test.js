@@ -1,13 +1,32 @@
 import test from 'ava';
-import program from './index';
+import {
+  initialize,
+  getModel,
+  getKey,
+  updateKey,
+} from './index';
 
 
-test('getModel', async (t) => {
+test('await chain', async (t) => {
   const initial = { a: 1, b: [2, 3], c: { x: 'hello', y: 'world' } };
-  const { getModel } = await program(initial);
-  const model = await getModel();
-  console.log(model);
-  console.log(initial);
+  const program = await initialize(initial);
 
-  t.deepEqual(model, initial);
+  const model0 = await getModel(program);
+  const a0 = await getKey(program, 'a');
+
+  await updateKey(program, 'a', '(+)', 1);
+  const a1 = await getKey(program, 'a');
+  const model1 = await getModel(program);
+
+  await updateKey(program, 'a', '(+)', 1);
+  const a2 = await getKey(program, 'a');
+  const model2 = await getModel(program);
+
+
+  t.deepEqual(model0, initial);
+  t.is(a0, 1);
+  t.is(a1, 2);
+  t.deepEqual(model1, Object.assign(initial, { a: 2 }));
+  t.is(a2, 3);
+  t.deepEqual(model2, Object.assign(initial, { a: 3 }));
 });

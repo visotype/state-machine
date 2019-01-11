@@ -1,34 +1,7 @@
 const { Main } = require('./main.js').Elm;
 
 
-const getModelFrom = program => () => new Promise((resolve, reject) => {
-  program.ports.outgoing.subscribe(m => (
-    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
-  ));
-  program.ports.getModel.send({});
-});
-
-
-const getKeyFrom = program => key => new Promise((resolve, reject) => {
-  program.ports.outgoing.subscribe(m => (
-    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
-  ));
-  program.ports.getKey.send(key);
-});
-
-
-const updateKeyFrom = program => (key, f, ...args) => new Promise((resolve, reject) => {
-  program.ports.outgoing.subscribe(m => (
-    m.resolve ? resolve(m.value) : reject(new TypeError(m.error))
-  ));
-  program.ports.updateKey.send(key, {
-    f,
-    args,
-  });
-});
-
-
-module.exports = async (initial) => {
+const initialize = model => new Promise((resolve, reject) => {
   const isObject = (x = null) => {
     if (x === null) {
       return false;
@@ -37,21 +10,61 @@ module.exports = async (initial) => {
     return (x.constructor === Object);
   };
 
-  const program = await new Promise((resolve, reject) => {
-    if (isObject(initial)) {
-      resolve(Main.init(initial));
+  if (isObject(model)) {
+    resolve(Main.init({ flags: model }));
+  } else {
+    reject(new TypeError('Initial model passed to Elm must be an object.'));
+  }
+});
+
+const getModel = program => new Promise((resolve, reject) => {
+  const callback = (m) => {
+    if (m.resolve) {
+      program.ports.outgoing.unsubscribe(callback);
+      resolve(m.value);
     } else {
-      reject(new TypeError('Initial model passed to Elm must be an object.'));
+      reject(new TypeError(m.error));
     }
-  });
-
-  const getModel = await getModelFrom(program);
-  const getKey = await getKeyFrom(program);
-  const updateKey = await updateKeyFrom(program);
-
-  return {
-    getModel,
-    getKey,
-    updateKey,
   };
+
+  program.ports.outgoing.subscribe(callback);
+  program.ports.getModel.send({});
+});
+
+
+const getKey = (program, key) => new Promise((resolve, reject) => {
+  const callback = (m) => {
+    if (m.resolve) {
+      program.ports.outgoing.unsubscribe(callback);
+      resolve(m.value);
+    } else {
+      reject(new TypeError(m.error));
+    }
+  };
+
+  program.ports.outgoing.subscribe(callback);
+  program.ports.getKey.send({ key });
+});
+
+
+const updateKey = (program, key, f, ...args) => new Promise((resolve, reject) => {
+  const callback = (m) => {
+    if (m.resolve) {
+      program.ports.outgoing.unsubscribe(callback);
+      resolve(m.value);
+    } else {
+      reject(new TypeError(m.error));
+    }
+  };
+
+  program.ports.outgoing.subscribe(callback);
+  program.ports.updateKey.send({ key, f, args });
+});
+
+
+module.exports = {
+  initialize,
+  getModel,
+  getKey,
+  updateKey,
 };
