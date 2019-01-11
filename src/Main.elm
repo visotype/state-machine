@@ -4,7 +4,6 @@ port module Main exposing (main)
 import Eval
 
 -- Core
-import Debug
 import Dict exposing (Dict)
 import Platform.Sub
 import Json.Decode as Decode
