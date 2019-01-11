@@ -1,17 +1,17 @@
 {
-  "name": "elm-state-machine",
+  "name": "node-elm-state",
   "version": "1.0.0",
   "description": "Use an Elm program as a state container for a JS/Node application",
   "private": true,
   "main": "index.js",
   "scripts": {
-    "build": "npx elm make src/Main.elm --output=main.js --optimize",
+    "build": "npx elm make src/Main.elm --output=main.js --optimize && npx uglifyjs main.js -o main.js --compress --mangle",
     "sync": "git add . && git commit -m 'automated sync' && git push",
     "test": "eslint '**/*.js' && ava"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/visotype/elm-state-machine"
+    "url": "https://github.com/visotype/node-elm-state"
   },
   "keywords": [],
   "author": "Daniel C. Narey",
@@ -27,6 +27,7 @@
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-ava": "^5.1.1",
     "eslint-plugin-import": "^2.14.0",
-    "eslint-plugin-types": "^1.0.2"
+    "eslint-plugin-types": "^1.0.2",
+    "uglify-js": "^3.4.9"
   }
 }

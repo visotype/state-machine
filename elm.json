@@ -1,6 +1,6 @@
 {
     "type": "application",
-    "name": "visotype/elm-state-machine",
+    "name": "visotype/elm-state-main",
     "summary": "Use an Elm program as a state container for a JS/Node application",
     "license": "MIT",
     "version": "1.0.0",
@@ -12,7 +12,7 @@
         "direct": {
           "elm/core": "1.0.2",
           "elm/json": "1.1.2",
-          "visotype/elm-eval": "1.0.0"
+          "visotype/elm-eval": "1.0.2"
         },
         "indirect": {}
     },

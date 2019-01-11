@@ -47,10 +47,10 @@ main =
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
+update msg previous =
   case msg of
     GetModel _ ->
-      model
+      previous
         |> (\d -> (d, d))
         |> Tuple.mapSecond (
           Dict.toList
@@ -61,7 +61,7 @@ update msg model =
         )
 
     GetKey object ->
-      model
+      previous
         |> (\d -> (d, d))
         |> Tuple.mapSecond (
           (object |> tryStringField "key" |> tryDictGet)
@@ -70,12 +70,12 @@ update msg model =
         )
 
     UpdateKey object ->
-      model
+      previous
         |> updateModel object
         |> (\d -> (d, d))
-        |> Tuple.mapFirst (Result.withDefault model)
+        |> Tuple.mapFirst (Result.withDefault previous)
         |> Tuple.mapSecond (
-          Result.andThen (object |> tryStringField "key" |> tryDictGet)
+          Result.map (Dict.toList >> Encode.object)
             >> encodeResult
             >> outgoing
         )
@@ -140,7 +140,17 @@ updateModel object previous =
     callResult =
       case (object |> tryStringField "f", object |> tryListField "args") of
         (Ok f, Ok args) ->
-          Ok { f = f, args = args }
+          case (allowedFunctions |> List.member f) of
+            True ->
+              Ok { f = f, args = args }
+
+            False ->
+              Err (
+                "`" ++ f ++ "` cannot be applied to the selected key because "
+                  ++ "it could change the type of value at that key. Keys and "
+                  ++ "their corresponding value types can only be set once, "
+                  ++ "when the program is initialized with an initial model."
+              )
 
         (Err a, Err b) ->
           Err (a ++ " : " ++ b)
@@ -184,7 +194,6 @@ updateModel object previous =
         Err error
 
 
-
 encodeResult : Result String Value -> Value
 encodeResult result =
   case result of
@@ -201,3 +210,121 @@ encodeResult result =
       , ("error", message |> Encode.string)
       ]
         |> Encode.object
+
+
+allowedFunctions : List String
+allowedFunctions =
+  [ "(+)", "Basics.(+)"
+  , "(-)", "Basics.(-)"
+  , "(*)", "Basics.(*)"
+  , "(/)", "Basics.(/)"
+  , "(//)", "Basics.(//)"
+  , "(^)", "Basics.(^)"
+  , "round", "Basics.round"
+  , "floor", "Basics.floor"
+  , "ceiling", "Basics.ceiling"
+  , "truncate", "Basics.truncate"
+  , "not", "Basics.not"
+  , "(&&)", "Basics.(&&)"
+  , "(||)", "Basics.(||)"
+  , "xor", "Basics.(xor)"
+  , "modby", "Basics.modby"
+  , "remainderBy", "Basics.remainderBy"
+  , "negate", "Basics.negate"
+  , "abs", "Basics.abs"
+  , "clamp", "Basics.clamp"
+  , "sqrt", "Basics.sqrt"
+  , "logBase", "Basics.logBase"
+  , "degrees", "Basics.degrees"
+  , "radians", "Basics.radians"
+  , "turns", "Basics.turns"
+  , "cos", "Basics.cos"
+  , "sin", "Basics.sin"
+  , "tan", "Basics.tan"
+  , "acos", "Basics.acos"
+  , "asin", "Basics.sin"
+  , "atan", "Basics.atan"
+  , "atan2", "Basics.atan2"
+  , "identity", "Basics.identity"
+  , "always.string", "Basics.always.string"
+  , "always.char", "Basics.always.char"
+  , "always.int", "Basics.always.int"
+  , "always.float", "Basics.always.float"
+  , "always.list", "Basics.always.list"
+  , "always.array", "Basics.always.array"
+  , "always.dict", "Basics.always.dict"
+  , "Array.set.string"
+  , "Array.set.char"
+  , "Array.set.int"
+  , "Array.set.float"
+  , "Array.push.string"
+  , "Array.push.char"
+  , "Array.push.int"
+  , "Array.push.float"
+  , "Array.append.string"
+  , "Array.append.char"
+  , "Array.append.int"
+  , "Array.append.float"
+  , "Array.slice"
+  , "Bitwise.and"
+  , "Bitwise.or"
+  , "Bitwise.xor"
+  , "Bitwise.complement"
+  , "Bitwise.shiftLeftBy"
+  , "Bitwise.shiftRightBy"
+  , "Bitwise.shiftRightZfBy"
+  , "Char.toUpper"
+  , "Char.toLower"
+  , "Char.toLocaleUpper"
+  , "Char.toLocaleLower"
+  , "Dict.insert"
+  , "Dict.remove"
+  , "Dict.union"
+  , "Dict.intersect"
+  , "Dict.diff"
+  , "(::)", "List.(::)"
+  , "List.reverse"
+  , "List.append"
+  , "List.intersperse"
+  , "List.tail"
+  , "List.take"
+  , "List.drop"
+  , "Set.insert.string"
+  , "Set.insert.char"
+  , "Set.insert.int"
+  , "Set.insert.float"
+  , "Set.remove.string"
+  , "Set.remove.char"
+  , "Set.remove.int"
+  , "Set.remove.float"
+  , "Set.union.string"
+  , "Set.union.char"
+  , "Set.union.int"
+  , "Set.union.float"
+  , "Set.intersect.string"
+  , "Set.intersect.char"
+  , "Set.intersect.int"
+  , "Set.intersect.float"
+  , "Set.diff.string"
+  , "Set.diff.char"
+  , "Set.diff.int"
+  , "Set.diff.float"
+  , "String.reverse"
+  , "String.repeat"
+  , "String.replace"
+  , "String.append"
+  , "String.slice"
+  , "String.left"
+  , "String.right"
+  , "String.dropLeft"
+  , "String.dropRight"
+  , "String.cons"
+  , "String.toUpper"
+  , "String.toLower"
+  , "String.pad"
+  , "String.padLeft"
+  , "String.padRight"
+  , "String.trim"
+  , "String.trimLeft"
+  , "String.trimRight"
+  ]
