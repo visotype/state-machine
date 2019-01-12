@@ -3,24 +3,28 @@
 **Use an Elm program as a state machine for a JS/Node application (experimental)**
 
 
-## Concept: A multi-language implementation of the Elm architecture
+## Concept
+
+### A multi-language implementation of the Elm architecture
 
 The [Elm architecture](https://guide.elm-lang.org/architecture/)
 is composed of a **model** (a
 [statically typed](https://en.wikipedia.org/wiki/Type_system#Static_type_checking)
-data structure), an **update** (a function that handles updates the model's
+data structure), an **update** (a function that handles updates to the model's
 values), and a **view** (a template that renders HTML with the current model
 values as inputs).
 
-*visotype/state-machine* is a package for Node (and web application bundlers)
+**visotype/state-machine** is a package for Node (and web application bundlers)
 that lets you store your data model in an Elm program and update its values
-through a JS-Elm interop with some built-in type safety features. This approach
+through a JS-Elm interop *with some built-in type safety features*. This approach
 gives you at least some of the benefits of Elm in avoiding type errors at run
 time, while enabling you
   - to use other templating languages (like [Pug](https://www.npmjs.com/package/pug) or [Handlebars](https://www.npmjs.com/package/handlebars)) for HTML markup
   - to render simple templates without virtual-dom diffing
   - to use JavaScript to implement intended side effects triggered by model updates
   - to interact with your data model through a promise API.
+
+### Considerations
 
 You might be interested in this approach if you prefer the simplicity of the Elm
 architecture to component-based architectures like
