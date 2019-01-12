@@ -64,6 +64,14 @@ const { initialize, updateKey } = require('state-machine');
   }
 })();
 
+
+Logged output:
+
+[ { a: 1, b: [ 2, 3 ], c: { x: 'hello', y: 'world' } },
+  { a: 2, b: [ 2, 3 ], c: { x: 'hello', y: 'world' } },
+  { a: 2, b: [ 2, 3, 4 ], c: { x: 'hello', y: 'world' } },
+  { a: 2, b: [ 2, 3, 4 ], c: { x: 'hello', y: 'universe' } } ]
+
 ```
 
 ## API
