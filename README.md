@@ -18,9 +18,8 @@ The [Elm architecture](https://guide.elm-lang.org/architecture/) is composed of
 - and update its values through a JS-Elm interop
 - with some built-in type safety features.
 
-This approach
-  - gives you some of the benefits of Elm in catching type errors at compile time
-  - but does not require you write your entire application in Elm.
+This approach gives you some of the benefits of Elm in catching type errors at
+compile time but does not require you write your entire application in Elm.
 
 It enables you
   - to use other templating languages (like [Pug](https://www.npmjs.com/package/pug) or [Handlebars](https://www.npmjs.com/package/handlebars)) for HTML markup
@@ -30,13 +29,15 @@ It enables you
 
 ### Considerations
 
-You might be interested in this approach
-- if you prefer the simplicity of the Elm architecture to component-based architectures like [React Redux](https://react-redux.js.org/)
-- but you find it cumbersome to write view templates and handle user inputs in Elm.
+You might be interested in this approach if you prefer the simplicity of the Elm
+architecture to component-based architectures like
+[React Redux](https://react-redux.js.org/),
+but you find it cumbersome to write view templates and handle user inputs in
+Elm.
 
-You might not like this approach
-- if you think that type-safety guarantees for inputs to and outputs from your data model are not enough
-- so you prefer that all of your application logic gets checked by the Elm compiler.
+You might not like this approach if you think that type-safety guarantees for
+inputs to and outputs from your data model are not enough, and you would prefer
+that all of your application logic gets checked by the Elm compiler.
 
 
 ## Usage
