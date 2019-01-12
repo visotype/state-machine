@@ -1,5 +1,5 @@
 {
-  "name": "node-elm-state",
+  "name": "state-machine",
   "version": "1.0.0",
   "description": "Use an Elm program as a state container for a JS/Node application",
   "private": true,
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/visotype/node-elm-state"
+    "url": "https://github.com/visotype/state-machine"
   },
   "keywords": [],
   "author": "Daniel C. Narey",

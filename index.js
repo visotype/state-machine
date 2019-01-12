@@ -17,48 +17,48 @@ const initialize = model => new Promise((resolve, reject) => {
   }
 });
 
-const getModel = program => new Promise((resolve, reject) => {
+const getModel = machine => new Promise((resolve, reject) => {
   const callback = (m) => {
     if (m.resolve) {
-      program.ports.outgoing.unsubscribe(callback);
+      machine.ports.outgoing.unsubscribe(callback);
       resolve(m.value);
     } else {
       reject(new TypeError(m.error));
     }
   };
 
-  program.ports.outgoing.subscribe(callback);
-  program.ports.getModel.send({});
+  machine.ports.outgoing.subscribe(callback);
+  machine.ports.getModel.send({});
 });
 
 
-const getKey = (program, key) => new Promise((resolve, reject) => {
+const getKey = (machine, key) => new Promise((resolve, reject) => {
   const callback = (m) => {
     if (m.resolve) {
-      program.ports.outgoing.unsubscribe(callback);
+      machine.ports.outgoing.unsubscribe(callback);
       resolve(m.value);
     } else {
       reject(new TypeError(m.error));
     }
   };
 
-  program.ports.outgoing.subscribe(callback);
-  program.ports.getKey.send({ key });
+  machine.ports.outgoing.subscribe(callback);
+  machine.ports.getKey.send({ key });
 });
 
 
-const updateKey = (program, key, f, ...args) => new Promise((resolve, reject) => {
+const updateKey = (machine, key, f, ...args) => new Promise((resolve, reject) => {
   const callback = (m) => {
     if (m.resolve) {
-      program.ports.outgoing.unsubscribe(callback);
+      machine.ports.outgoing.unsubscribe(callback);
       resolve(m.value);
     } else {
       reject(new TypeError(m.error));
     }
   };
 
-  program.ports.outgoing.subscribe(callback);
-  program.ports.updateKey.send({ key, f, args });
+  machine.ports.outgoing.subscribe(callback);
+  machine.ports.updateKey.send({ key, f, args });
 });
 
 

@@ -9,22 +9,22 @@ import {
 
 test('await chain produces serial updates', async (t) => {
   const model0 = { a: 1, b: [2, 3], c: { x: 'hello', y: 'world' } };
-  const program = await initialize(model0);
+  const machine = await initialize(model0);
 
-  const model1 = await getModel(program);
-  const a1 = await getKey(program, 'a');
+  const model1 = await getModel(machine);
+  const a1 = await getKey(machine, 'a');
 
-  const model2 = await updateKey(program, 'a', '(+)', 1);
-  const a2 = await getKey(program, 'a');
+  const model2 = await updateKey(machine, 'a', '(+)', 1);
+  const a2 = await getKey(machine, 'a');
 
-  const model3 = await updateKey(program, 'a', '(+)', 1);
-  const a3 = await getKey(program, 'a');
+  const model3 = await updateKey(machine, 'a', '(+)', 1);
+  const a3 = await getKey(machine, 'a');
 
-  const model4 = await updateKey(program, 'c', 'Dict.union', { y: 'universe' });
-  const a4 = await getKey(program, 'c');
+  const model4 = await updateKey(machine, 'c', 'Dict.union', { y: 'universe' });
+  const a4 = await getKey(machine, 'c');
 
-  await updateKey(program, 'a', 'always.int', -1);
-  const a5 = await getKey(program, 'a');
+  await updateKey(machine, 'a', 'always.int', -1);
+  const a5 = await getKey(machine, 'a');
 
 
   t.deepEqual(model1, model0);
@@ -44,15 +44,15 @@ test('await chain produces serial updates', async (t) => {
 
 test('only type-preserving functions allowed', async (t) => {
   const model0 = { a: 'hello' };
-  const program = await initialize(model0);
+  const machine = await initialize(model0);
 
   await t.throwsAsync(
-    updateKey(program, 'a', 'always', 1),
+    updateKey(machine, 'a', 'always', 1),
     { instanceOf: TypeError },
   );
 
   await t.throwsAsync(
-    updateKey(program, 'a', 'String.length'),
+    updateKey(machine, 'a', 'String.length'),
     { instanceOf: TypeError },
   );
 });
