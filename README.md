@@ -14,18 +14,17 @@ The [Elm architecture](https://guide.elm-lang.org/architecture/) is composed of
 
 **visotype/state-machine** is
 - a package for Node (and web application bundlers)
-- that lets you store your data model in an Elm program
-- and update its values through a JS-Elm interop
-- with some built-in type safety features.
+- that lets you **store your data model** in an Elm program
+- and **update its values** through a JS-Elm interop
+- with some **built-in type safety features**.
 
 This approach gives you some of the benefits of Elm in catching type errors at
-compile time but does not require you write your entire application in Elm.
-
-It enables you
-  - to use other templating languages (like [Pug](https://www.npmjs.com/package/pug) or [Handlebars](https://www.npmjs.com/package/handlebars)) for HTML markup
+compile time but does not require you write your entire application in Elm. It
+enables you
+  - to use **other templating languages** (like [Pug](https://www.npmjs.com/package/pug) or [Handlebars](https://www.npmjs.com/package/handlebars)) for HTML markup
   - to render simple templates without virtual-dom diffing
   - to use JavaScript to implement intended side effects triggered by model updates
-  - to interact with your data model through a promise API.
+  - to interact with your data model through a **promise API**.
 
 ### Considerations
 
