@@ -155,6 +155,10 @@ decoding fails.
 
 ## Allowed function names
 
+Documentation for Elm core library functions can be found
+[here](https://package.elm-lang.org/packages/elm/core/latest/). The following
+function names are allowed as arguments to `updateKey`:
+
 - `'(+)'` or `'Basics.(+)'`
 - `'(-)'` or `'Basics.(-)'`
 - `'(*)'` or `'Basics.(*)'`
