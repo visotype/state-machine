@@ -41,7 +41,7 @@ that all of your application logic gets checked by the Elm compiler.
 
 ## Usage
 
-```
+```javascript
 const { initialize, updateKey } = require('state-machine');
 
 (async () => {
